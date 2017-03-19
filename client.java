@@ -33,9 +33,8 @@ private static int _port = -1;
  * @return USER_ERROR if the user is already registered
  * @return ERROR if another error occurred
  */
-static RC register(String user)
-{
-								// Write your code here
+static RC register(String user){
+
 								int res = -1;
 
 								try {
@@ -83,10 +82,33 @@ static RC register(String user)
  * @return USER_ERROR if the user does not exist
  * @return ERROR if another error occurred
  */
-static RC unregister(String user)
-{
-								// Write your code here
-								return RC.ERROR;
+static RC unregister(String user){
+								int res = -1;
+								try{
+																Socket sc = new Socket(_server, _port);
+																OutputStream ostream = sc.getOutputStream();
+																ObjectOutput s = new ObjectOutputStream(ostream);
+																DataInputStream istream = new DataInputStream(sc.getInputStream());
+																s.writeObject("UNREGISTER");
+																s.writeObject(user);
+																s.flush();
+																res = istream.readInt();
+																sc.close();
+								}catch( Exception e) {
+																e.printStackTrace();
+																return RC.ERROR;
+								}
+								switch (res) {
+								case 0:
+																System.out.println("c> UNREGISTER OK");
+																break;
+								case 1:
+																System.out.println("c> USER DOES NOT EXIST");
+																break;
+								case 2:
+								default:
+																System.out.println("c> UNREGISTER FAIL");
+								}
 }
 
 /**
