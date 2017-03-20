@@ -91,7 +91,9 @@ int main(int argc, char**argv){
   serverAddr.sin_addr.s_addr = INADDR_ANY;
   serverAddr.sin_port = htons(port);
 
-  bind(sd, &serverAddr, sizeof(serverAddr));
+  if( bind(sd, &serverAddr, sizeof(serverAddr)) == -1){
+   perror("Bind error: ");
+  }
 
   listen(sd, 5);
   size = sizeof(clientAddr);
@@ -101,10 +103,22 @@ int main(int argc, char**argv){
 
     sc = accept( sd, (struct sockaddr *) &clientAddr, &size);
 
-    recv_msg(sc, buffer, sizeof(buffer));
+    //recv_msg(sc, buffer, sizeof(buffer));
     //recv(sc, (char *)&res, sizeof(int), 0);
+    // recv(sc, (char *)&buffer[0], 256, 0);
+    // recv(sc, (char *)&buffer[1], 256, 0);
+    char xx[2][256];
+    recv(sc, (char *)xx[0], 1, 0);
+    recv(sc, (char *)xx[1], 1, 0);
+    printf("buffer: %s\n",xx[0] );
+    printf("buffer: %s\n",xx[1] );
 
-
+    //
+    // int i;
+    // for(i = 0; i<4; i++){
+    //   printf("buffer[%d]: %s\n",i, buffer[i] );
+    // }
+/*
     // create thread
     pthread_t thid;
     // create new thread with message received
@@ -121,12 +135,15 @@ int main(int argc, char**argv){
     msg_not_copied = TRUE;
     pthread_mutex_unlock(&mutex_msg);
 
-
+*/
 
     // res = res+1;
     // send(sc, &res, sizeof(int), 0);
+    char res = 1;
+    //uint8_t res = '1';
+    sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,size );
 
-    close(sc);
+    //close(sc);
 
   }
 

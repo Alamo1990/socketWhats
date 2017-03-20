@@ -27,7 +27,7 @@ int recv_msg(int socket, char message[4][256], int length)
 
 
 	do {
-		r = read(socket, message, l);
+		r = read(socket, *message, l);
 		l = l -r ;
 		message++;
 	} while ((l>0) && (r>=0));

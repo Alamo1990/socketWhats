@@ -49,8 +49,11 @@ static RC register(String user){
 																s.writeObject(user);
 																s.flush();
 
-																res = istream.readChar();
-
+																byte[] msg = new byte[1];
+																//res = istream.readChar();
+																int bytesRead = istream.read(msg);
+																res = msg[0];
+																
 																sc.close();
 								}catch(Exception ex) {
 																ex.printStackTrace();
