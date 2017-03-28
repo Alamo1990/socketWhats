@@ -42,19 +42,27 @@ static RC register(String user){
 								try {
 																Socket sc = new Socket(_server, _port);
 																OutputStream ostream = sc.getOutputStream();
-																ObjectOutput s = new ObjectOutputStream(ostream);
+																//ObjectOutput s = new ObjectOutputStream(ostream);
+																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																s.writeObject("REGISTER");
-																s.writeObject(user);
+																//s.writeObject("REGISTER");
+																//s.writeObject(user);
+																s.writeBytes("REGISTER");
+																s.writeInt(user.length());
+																s.writeBytes(user);
+																s.writeByte('\n');
+
+                //s.writeBytes("AAAAAAAAAA");
+                //s.write('\0');
 																s.flush();
 
 																byte[] msg = new byte[1];
 																//res = istream.readChar();
 																int bytesRead = istream.read(msg);
 																res = msg[0];
-																
-																sc.close();
+																//
+																// sc.close();
 								}catch(Exception ex) {
 																ex.printStackTrace();
 																return RC.ERROR;
