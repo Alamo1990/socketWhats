@@ -9,6 +9,9 @@
 #include <pthread.h>
 
 #include "queue.h"
+
+// FIXME
+#include "queue.c"
 #include "read_line.c"
 
 #define TRUE 1
@@ -20,31 +23,86 @@ int msg_not_copied = TRUE;
 pthread_cond_t cond_msg;
 
 
-void process_message(char **msg){
-  char msg_local[4][256];
+struct argumentWrapper{
+
+  char *username;
+  int clientFD;
+  struct sockaddr_in clientAddr;
+
+};
+
+struct userInformation{
+  char *username;
+
+};
+struct queue *queueUsers;
+
+
+// Initialize synchronization elements
+void initializeSync(){
+  if( pthread_mutex_init(&mutex_msg, NULL) != 0){
+    perror("Not possible to initialize mutex");
+    exit(0);
+  };
+
+  if( pthread_cond_init(&cond_msg, NULL) != 0){
+    perror("Not possible to initialize condition variable");
+    exit(0);
+  }
+}
+
+// destroy synchronization elements
+void destroySync(){
+  if( pthread_mutex_destroy(&mutex_msg) != 0){
+    perror("Not possible to destroy mutex");
+    exit(0);
+  };
+
+  if( pthread_cond_destroy(&cond_msg) != 0){
+    perror("Not possible to destroy condition variable");
+    exit(0);
+  }
+}
+
+
+void registerUser(struct argumentWrapper *args){
+
+  char username[sizeof(args->username)];
+  int sc;
+  struct sockaddr_in clientAddr;
 
   // start critical section
   pthread_mutex_lock(&mutex_msg);
 
-  // copy message to local variable
-  int i;
-  for(i = 0; i<4; i++){
-    memcpy( (char *) msg_local[i], (char *) msg[i], 256);
-  }
+  strcpy(username,args->username);
+  sc = args->clientFD;
+  clientAddr = args->clientAddr;
 
   // release and end critical section
   msg_not_copied = FALSE;
   pthread_cond_signal(&cond_msg);
   pthread_mutex_unlock(&mutex_msg);
 
-  for(i = 0; i<4; i++){
-    printf("msg_local[%d]: %s\n",i, msg_local[i] );
-  }
+  free(args->username);
+
+
+
+
+  printf("username %s\n", username);
+  char res = 1;
+  sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
+  close(sc);
 
 }
 
 
+
 int main(int argc, char**argv){
+
+  queueUsers = queue_new();
+
+  // Initialize synchronization elements
+  initializeSync();
 
   int port;
   // parse arguments
@@ -105,14 +163,14 @@ int main(int argc, char**argv){
     printf("Waiting for connection \n");
 
     sc = accept( sd, (struct sockaddr *) &clientAddr, &size);
-
+/*
      int count = recv_msg(sc, buffer, 8);
      printf("%s\n", buffer);
      int length = 0;
      count = recv_msg(sc, (char *)&length, 4);
      length = ntohl(length);
      printf("%d\n", length );
-     char username[length];
+     char username[length+1];
      count = recv_msg(sc, (char *)&username, length);
      printf("%s\n", username );
 
@@ -120,14 +178,71 @@ int main(int argc, char**argv){
     char res = 1;
     //uint8_t res = '1';
     sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,size );
+*/
 
-    close(sc);
+    int count = readLine(sc, buffer,256);
+    if(count == -1){
+      perror("Error reading command: ");
+    }else if(count == 0){
+      printf("Error: command empty\n");
+    }
+    printf("Command: %s\n", buffer);
+
+
+     if(strstr(buffer, "REGISTER")){
+    //if(strcmp(buffer, "REGISTER")){
+      char *username;
+      username = (char *) calloc(256,sizeof(char));
+      count = readLine(sc, username, 256);
+
+      if(count == -1){
+        perror("Error reading username: ");
+      }else if(count == 0){
+        printf("Error: username empty\n");
+      }
+
+      printf("count: %d, username: %s\n", count,username);
+     // free(username);
+
+      struct argumentWrapper args;
+      args.username = username;
+      args.clientFD = sc;
+      args.clientAddr = clientAddr;
+
+      pthread_t thid;
+      // create new thread with message received
+      if( pthread_create( &thid, &thread_attributes, (void *) registerUser, &args) != 0 ){
+        perror("Error creating thread");
+        continue;
+      }
+
+      // start critical section
+      pthread_mutex_lock(&mutex_msg);
+      while(msg_not_copied){
+        pthread_cond_wait(&cond_msg, &mutex_msg);
+      }
+
+      // end critical section
+      msg_not_copied = TRUE;
+      pthread_mutex_unlock(&mutex_msg);
+
+
+
+    //  char res = 1;
+    //  sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,size );
+    //close(sc);
+    }
+
+
+    //close(sc);
 
   }
 
    free(buffer);
    close(sd);
 
+  // Destroy synchronization elements
+  destroySync();
 
  return 0;
 }
