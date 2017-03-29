@@ -37,50 +37,53 @@ private static Socket receiveSc; //ASK
  */
 static RC register(String user){
 
-								int res = -1;
+	int res = -1;
 
-								try {
-																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																//ObjectOutput s = new ObjectOutputStream(ostream);
-																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
-																DataInputStream istream = new DataInputStream(sc.getInputStream());
+	try {
+		Socket sc = new Socket(_server, _port);
+		OutputStream ostream = sc.getOutputStream();
+		//ObjectOutput s = new ObjectOutputStream(ostream);
+		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
+		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																//s.writeObject("REGISTER");
-																//s.writeObject(user);
-																s.writeBytes("REGISTER");
-																s.writeInt(user.length());
-																s.writeBytes(user);
-																s.writeByte('\n');
 
-                //s.writeBytes("AAAAAAAAAA");
-                //s.write('\0');
-																s.flush();
+/*MIRAR EL PRINT WRITTER*/
+		// All strings must end with \0
+		//s.writeObject("REGISTER");
+		//s.writeObject(user);
+		s.writeBytes("REGISTER\0");
+		//s.writeInt(user.length());
+		s.writeBytes(user);
+		s.writeByte('\0');
 
-																byte[] msg = new byte[1];
-																//res = istream.readChar();
-																int bytesRead = istream.read(msg);
-																res = msg[0];
-																//
-																// sc.close();
-								}catch(Exception ex) {
-																ex.printStackTrace();
-																return RC.ERROR;
-								}
+//s.writeBytes("AAAAAAAAAA");
+//s.write('\0');
+		s.flush();
 
-								switch(res) {
-								case 0:
-																System.out.println("c> REGISTER OK");
-																return RC.OK;
-								case 1:
-																System.out.println("c> REGISTER IN USE");
-																return RC.USER_ERROR;
-								case 2:
-																System.out.println("c> REGISTER FAIL");
-																return RC.ERROR;
-								default:
-																return RC.ERROR;
-								}
+		byte[] msg = new byte[1];
+		//res = istream.readChar();
+		int bytesRead = istream.read(msg);
+		res = msg[0];
+		//
+		// sc.close();
+	}catch(Exception ex) {
+		ex.printStackTrace();
+		return RC.ERROR;
+	}
+
+	switch(res) {
+	case 0:
+		System.out.println("c> REGISTER OK");
+		return RC.OK;
+	case 1:
+		System.out.println("c> REGISTER IN USE");
+		return RC.USER_ERROR;
+	case 2:
+		System.out.println("c> REGISTER FAIL");
+		return RC.ERROR;
+	default:
+		return RC.ERROR;
+	}
 
 }
 

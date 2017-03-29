@@ -22,17 +22,28 @@ pthread_mutex_t mutex_msg;
 int msg_not_copied = TRUE;
 pthread_cond_t cond_msg;
 
-
+// FIXME put in a header file
 struct argumentWrapper{
-
   char *username;
   int clientFD;
   struct sockaddr_in clientAddr;
 
 };
 
+struct messages{
+    unsigned int message_id;
+    char *message;
+    char *sender;
+    char *receiver;
+};
+
 struct userInformation{
   char *username;
+  char status;
+  struct in_addr user_addr;
+  unsigned short user_port;
+  struct messages *pending_messages;
+  unsigned int last_message_id;
 
 };
 struct queue *queueUsers;
