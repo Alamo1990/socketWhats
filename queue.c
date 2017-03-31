@@ -78,30 +78,24 @@ void* dequeue( struct queue* s )
 /* Search an element and remove it from queue if found
    This function can be specialized for comparing the contents of structures s->data and data instead of pointers to structures
  */
-void* queue_find_remove(struct queue* s, void * data )
+void* queue_find_remove(struct queue* s, char * username )
 {
         void * ret;
 
-        if( NULL == s )
-        {
+        if( NULL == s ) {
                 //printf("List is empty\n");
                 return NULL;
-        }
-        else
-        if( NULL == s->head && NULL == s->tail )
-        {
+        }else if( NULL == s->head && NULL == s->tail ) {
                 //printf("Well, List is empty\n");
                 return NULL;
-        }
-        else if( NULL == s->head || NULL == s->tail )
-        {
+        }else if( NULL == s->head || NULL == s->tail ) {
                 printf("There is something seriously wrong with your list\n");
                 printf("One of the head/tail is empty while other is not \n");
                 return NULL;
         }
 
-        if ( s->head->data == data) {
-                ret = data;
+        if (!strcmp(((struct userInformation*)(s->head->data))->username, username)) {
+
                 if (s->head == s->tail) {
                         free(s->head);
                         s->head = s->tail = NULL;
@@ -111,12 +105,12 @@ void* queue_find_remove(struct queue* s, void * data )
                         s->head = s->head->next;
                         free(aux);
                 }
-                return ret;
+                return (s->head->data);
         }
         else {
                 struct my_struct* aux;
 
-                for ( aux = s->head; aux->next && (aux->next->data != data); aux = aux->next) ;
+                for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
                 if (aux->next == NULL)
                         return NULL;
                 else {
