@@ -27,16 +27,16 @@ struct messages {
         char *sender;
         char *receiver;
 };
-
-struct userInformation {
-        char *username;
-        char status;
-        struct in_addr user_addr;
-        unsigned short user_port;
-        struct messages *pending_messages;
-        unsigned int last_message_id;
-
+struct userInformation{
+  char username[256];
+  char status;
+  struct in_addr user_addr;
+  unsigned short user_port;
+  //struct messages *pending_messages;
+  struct queue *pending_messages;
+  unsigned int last_message_id;
 };
+struct queue *queueUsers;
 
 
 void initializeSync(void);

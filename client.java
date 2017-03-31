@@ -37,53 +37,49 @@ private static Socket receiveSc; //ASK
  */
 static RC register(String user){
 
-								int res = -1;
+	int res = -1;
 
-								try {
-																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																//ObjectOutput s = new ObjectOutputStream(ostream);
-																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
-																DataInputStream istream = new DataInputStream(sc.getInputStream());
+	try {
+		Socket sc = new Socket(_server, _port);
+		OutputStream ostream = sc.getOutputStream();
+		//ObjectOutput s = new ObjectOutputStream(ostream);
+		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
+		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
 
-/*MIRAR EL PRINT WRITTER*/
-																// All strings must end with \0
-																//s.writeObject("REGISTER");
-																//s.writeObject(user);
-																s.writeBytes("REGISTER\0");
-																//s.writeInt(user.length());
-																s.writeBytes(user);
-																s.writeByte('\0');
+		/*MIRAR EL PRINT WRITTER*/
+		// All strings must end with \0
+		//s.writeObject("REGISTER");
+		//s.writeObject(user);
+		s.writeBytes("REGISTER\0");
+		s.writeBytes(user);
+		s.writeByte('\0');
 
-//s.writeBytes("AAAAAAAAAA");
-//s.write('\0');
-																s.flush();
+		s.flush();
 
-																byte[] msg = new byte[1];
-																//res = istream.readChar();
-																int bytesRead = istream.read(msg);
-																res = msg[0];
-																//
-																// sc.close();
-								}catch(Exception ex) {
-																ex.printStackTrace();
-																return RC.ERROR;
-								}
+		byte[] msg = new byte[1];
+		//res = istream.readChar();
+		int bytesRead = istream.read(msg);
+		res = msg[0];
+		sc.close();
+	}catch(Exception ex) {
+		ex.printStackTrace();
+		return RC.ERROR;
+	}
 
-								switch(res) {
-								case 0:
-																System.out.println("c> REGISTER OK");
-																return RC.OK;
-								case 1:
-																System.out.println("c> REGISTER IN USE");
-																return RC.USER_ERROR;
-								case 2:
-																System.out.println("c> REGISTER FAIL");
-																return RC.ERROR;
-								default:
-																return RC.ERROR;
-								}
+	switch(res) {
+		case 0:
+		System.out.println("c> REGISTER OK");
+		return RC.OK;
+		case 1:
+		System.out.println("c> REGISTER IN USE");
+		return RC.USER_ERROR;
+		case 2:
+		System.out.println("c> REGISTER FAIL");
+		return RC.ERROR;
+		default:
+		return RC.ERROR;
+	}
 
 }
 
@@ -95,33 +91,41 @@ static RC register(String user){
  * @return ERROR if another error occurred
  */
 static RC unregister(String user){
-								int res = -1;
-								try{
-																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																ObjectOutput s = new ObjectOutputStream(ostream);
-																DataInputStream istream = new DataInputStream(sc.getInputStream());
-																s.writeObject("UNREGISTER");
-																s.writeObject(user);
-																s.flush();
-																res = istream.readChar();
-																sc.close();
-								}catch( Exception e) {
-																e.printStackTrace();
-																return RC.ERROR;
-								}
-								switch (res) {
-								case 0:
-																System.out.println("c> UNREGISTER OK");
-																return RC.OK;
-								case 1:
-																System.out.println("c> USER DOES NOT EXIST");
-																return RC.USER_ERROR;
-								case 2: System.out.println("c> UNREGISTER FAIL");
-																return RC.ERROR;
-								default:
-																return RC.ERROR;
-								}
+	int res = -1;
+	try{
+		Socket sc = new Socket(_server, _port);
+		OutputStream ostream = sc.getOutputStream();
+		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
+		DataInputStream istream = new DataInputStream(sc.getInputStream());
+
+		s.writeBytes("UNREGISTER\0");
+		s.writeBytes(user);
+		s.writeByte('\0');
+
+		s.flush();
+
+		byte[] msg = new byte[1];
+		//res = istream.readChar();
+		int bytesRead = istream.read(msg);
+		res = msg[0];
+		sc.close();
+
+	}catch( Exception e) {
+		e.printStackTrace();
+		return RC.ERROR;
+	}
+	switch (res) {
+		case 0:
+		System.out.println("c> UNREGISTER OK");
+		return RC.OK;
+		case 1:
+		System.out.println("c> USER DOES NOT EXIST");
+		return RC.USER_ERROR;
+		case 2: System.out.println("c> UNREGISTER FAIL");
+		return RC.ERROR;
+		default:
+		return RC.ERROR;
+	}
 }
 
 /**
@@ -133,71 +137,71 @@ static RC unregister(String user){
  */
 static RC connect(String user){
 
-								int res = -1;
-								try{
-																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																ObjectOutput s = new ObjectOutputStream(ostream);
-																DataInputStream istream = new DataInputStream(sc.getInputStream());
+	int res = -1;
+	try{
+		Socket sc = new Socket(_server, _port);
+		OutputStream ostream = sc.getOutputStream();
+		ObjectOutput s = new ObjectOutputStream(ostream);
+		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																receiveSc = new Socket(InetAddress.getLocalHost().getHostAddress(), 0);
-																int port = receiveSc.getLocalPort();
-																listener = new Thread(){
-																								@Override
-																								public void run(){
+		receiveSc = new Socket(InetAddress.getLocalHost().getHostAddress(), 0);
+		int port = receiveSc.getLocalPort();
+		listener = new Thread(){
+			@Override
+			public void run(){
 
-																																try{
-																																								DataInputStream istream = new DataInputStream(receiveSc.getInputStream());
-																																								ObjectInput s = new ObjectInputStream(istream);
-																																								while(true) {
-																																																if(((String)s.readObject()).equals("SEND_MESSAGE")) {
-																																																								String usr = (String)s.readObject();
-																																																								String id = (String)s.readObject();
-																																																								String msg = (String)s.readObject();
+											try{
+																			DataInputStream istream = new DataInputStream(receiveSc.getInputStream());
+																			ObjectInput s = new ObjectInputStream(istream);
+																			while(true) {
+																											if(((String)s.readObject()).equals("SEND_MESSAGE")) {
+																																			String usr = (String)s.readObject();
+																																			String id = (String)s.readObject();
+																																			String msg = (String)s.readObject();
 
-																																																								System.out.println("c> MESSAGE " + id + " FROM " + usr +
-																																																																											":\n" + msg + "\nEND\n");
-																																																}else{} //ASK
-																																								} //TODO
+																																			System.out.println("c> MESSAGE " + id + " FROM " + usr +
+																																																						":\n" + msg + "\nEND\n");
+																											}else{} //ASK
+																			} //TODO
 
-																																}catch( Exception e) {
-																																								e.printStackTrace();
-																																								return;
-																																}
+											}catch( Exception e) {
+																			e.printStackTrace();
+																			return;
+											}
 
-																								}
-																};
+			}
+		};
 
-																s.writeObject("CONNECT");
-																s.writeObject(user);
-																s.writeObject(Integer.toString(port));
-																s.flush();
+		s.writeObject("CONNECT");
+		s.writeObject(user);
+		s.writeObject(Integer.toString(port));
+		s.flush();
 
-																res = istream.readChar();
+		res = istream.readChar();
 
-																sc.close();
-																listener.start();
+		sc.close();
+		listener.start();
 
-								}catch( Exception e) {
-																e.printStackTrace();
-																return RC.ERROR;
-								}
-								switch (res) {
-								case 0:
-																System.out.println("c> CONNECT OK");
-																return RC.OK;
-								case 1:
-																System.out.println("c> CONNECT FAIL, USER DOES NOT EXIST");
-																return RC.USER_ERROR;
-								case 2:
-																System.out.println("c> USER ALREADY CONNECTED");
-																return RC.ERROR;
-								case 3:
-																System.out.println("c> CONNECT FAIL");
-																return RC.ERROR;
-								default:
-																return RC.ERROR;
-								}
+	}catch( Exception e) {
+									e.printStackTrace();
+									return RC.ERROR;
+	}
+	switch (res) {
+	case 0:
+									System.out.println("c> CONNECT OK");
+									return RC.OK;
+	case 1:
+									System.out.println("c> CONNECT FAIL, USER DOES NOT EXIST");
+									return RC.USER_ERROR;
+	case 2:
+									System.out.println("c> USER ALREADY CONNECTED");
+									return RC.ERROR;
+	case 3:
+									System.out.println("c> CONNECT FAIL");
+									return RC.ERROR;
+	default:
+									return RC.ERROR;
+	}
 }
 
 /**
