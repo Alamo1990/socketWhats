@@ -7,15 +7,15 @@
 
 struct my_struct
 {
-  void *data;
-  struct my_struct* next;
+        void *data;
+        struct my_struct* next;
 };
 
 
 struct queue
 {
-  struct my_struct* head;
-  struct my_struct* tail;
+        struct my_struct* head;
+        struct my_struct* tail;
 };
 
 /* Enqueue an element */
@@ -28,10 +28,10 @@ int queue_empty ( struct queue* s );
 void* queue_find_remove(struct queue* s, void * data );
 /* Create an empty queue */
 struct queue* queue_new(void);
+/* If it finds the data in the queue it returns it. Otherwise it returns NULL */
+void* queue_find(struct queue* s, char * username );
 
 void queue_print(struct queue* );
 void queue_print_element(struct my_struct* );
 
 #endif
-
-
