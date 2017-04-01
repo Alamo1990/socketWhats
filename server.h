@@ -20,7 +20,7 @@ struct argumentWrapper {
         char *username;
         int clientFD;
         struct sockaddr_in clientAddr;
-
+        int clientPort;
 };
 
 struct messages {

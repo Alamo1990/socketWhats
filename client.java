@@ -142,14 +142,15 @@ static RC connect(String user){
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-		receiveSc = new Socket(InetAddress.getLocalHost().getHostAddress(), 0);
-		int port = receiveSc.getLocalPort();
+		ServerSocket serverSc = new ServerSocket(0);
+		int port = serverSc.getLocalPort();
 		listener = new Thread(){
 			@Override
 			public void run(){
 
 											try{
-																			DataInputStream istrem = new DataInputStream(receiveSc.getInputStream());
+																			Socket recSc = serverSc.accept();
+																			DataInputStream istrem = new DataInputStream(recSc.getInputStream());
 
 																			while(true) {
 																											if((istrem.readLine()).equals("SEND_MESSAGE")) {
@@ -178,10 +179,11 @@ static RC connect(String user){
 
 		s.flush();
 
-		res = istream.readChar();
-
+		byte[] msg = new byte[1];
+		//res = istream.readChar();
+		int bytesRead = istream.read(msg);
+		res = msg[0];
 		sc.close();
-		listener.start();
 
 	}catch( Exception e) {
 									e.printStackTrace();
@@ -190,17 +192,22 @@ static RC connect(String user){
 	switch (res) {
 	case 0:
 									System.out.println("CONNECT OK");
+									listener.start();
 									return RC.OK;
 	case 1:
 									System.out.println("CONNECT FAIL, USER DOES NOT EXIST");
+									// serverSc.close();
 									return RC.USER_ERROR;
 	case 2:
 									System.out.println("USER ALREADY CONNECTED");
+									// serverSc.close();
 									return RC.ERROR;
 	case 3:
 									System.out.println("CONNECT FAIL");
+									// serverSc.close();
 									return RC.ERROR;
 	default:
+									// serverSc.close();
 									return RC.ERROR;
 	}
 }

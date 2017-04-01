@@ -111,7 +111,7 @@ void registerUser(struct argumentWrapper *args){
 
 
 void unregisterUser(struct argumentWrapper *args){
-  printf("in unregister\n");
+
   char username[sizeof(args->username)];
   int sc;
   struct sockaddr_in clientAddr;
@@ -138,8 +138,39 @@ void unregisterUser(struct argumentWrapper *args){
   close(sc);
 }
 
+void  connectUser(struct argumentWrapper *args){
+  char username[sizeof(args->username)];
+  int sc;
+  int port;
+  struct userInformation* user;
+  struct sockaddr_in clientAddr;
 
+  // start critical section
+  pthread_mutex_lock(&mutex_msg);
 
+  strcpy(username,args->username);
+  sc = args->clientFD;
+  clientAddr = args->clientAddr;
+  port = args->clientPort;
+  // release and end critical section
+  msg_not_copied = FALSE;
+  pthread_cond_signal(&cond_msg);
+  pthread_mutex_unlock(&mutex_msg);
+
+  free(args->username);
+
+  if((user = queue_find(queueUsers, username)) != NULL){
+      if(user->status == 1) clientResponse(2, clientAddr, sc); // user is already connected
+      else{
+        user->user_addr = clientAddr.sin_addr;
+        user->user_port = port;
+        user->status = 1;
+        clientResponse(0, clientAddr, sc); // success
+      }
+  }else clientResponse(1, clientAddr, sc); // user does not exist
+
+  close(sc);
+}
 
 
 int main(int argc, char**argv){
@@ -295,19 +326,59 @@ int main(int argc, char**argv){
         perror("Error creating thread");
         close(sc);
         continue;
+    }
+  }else if(!strcmp(buffer, "CONNECT")){
+      char *username;
+      char *portString;
+      int port;
+      username = (char *) calloc(256,sizeof(char));
+      portString = (char *) calloc(8,sizeof(char));
+      count = readLine(sc, username, 256);
+
+      if(count == -1){
+        perror("Error reading username: ");
+        clientResponse(2, clientAddr, sc);
+        close(sc);
+        continue;
+      }else if(count == 0){
+        printf("Error: username empty\n");
+        clientResponse(2, clientAddr, sc);
+        close(sc);
+        continue;
+      }
+      readLine(sc, portString, 8);
+      port = atoi(portString);
+
+      printf("count: %d, username: %s, port: %d\n", count, username, port);
+     // free(username);
+     free(portString);
+
+      struct argumentWrapper args;
+      args.username = username;
+      args.clientFD = sc;
+      args.clientAddr = clientAddr;
+      args.clientPort = port;
+
+      pthread_t thid;
+      // create new thread with message received
+      if( pthread_create( &thid, &thread_attributes, (void *) connectUser, &args) != 0 ){
+        perror("Error creating thread");
+        close(sc);
+        continue;
       }
 
       // start critical section
-      pthread_mutex_lock(&mutex_msg);
-      while(msg_not_copied){
-        pthread_cond_wait(&cond_msg, &mutex_msg);
-      }
-
-      // end critical section
-      msg_not_copied = TRUE;
-      pthread_mutex_unlock(&mutex_msg);
-
+    pthread_mutex_lock(&mutex_msg);
+    while(msg_not_copied){
+      pthread_cond_wait(&cond_msg, &mutex_msg);
     }
+
+    // end critical section
+    msg_not_copied = TRUE;
+    pthread_mutex_unlock(&mutex_msg);
+
+  }else printf("Function not found\n");
+
 
   }// while
 
