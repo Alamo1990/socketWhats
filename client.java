@@ -69,13 +69,13 @@ static RC register(String user){
 
 	switch(res) {
 		case 0:
-		System.out.println("c> REGISTER OK");
+		System.out.println("REGISTER OK");
 		return RC.OK;
 		case 1:
-		System.out.println("c> REGISTER IN USE");
+		System.out.println("REGISTER IN USE");
 		return RC.USER_ERROR;
 		case 2:
-		System.out.println("c> REGISTER FAIL");
+		System.out.println("REGISTER FAIL");
 		return RC.ERROR;
 		default:
 		return RC.ERROR;
@@ -94,7 +94,6 @@ static RC unregister(String user){
 	int res = -1;
 	try{
 		Socket sc = new Socket(_server, _port);
-		OutputStream ostream = sc.getOutputStream();
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
@@ -116,12 +115,12 @@ static RC unregister(String user){
 	}
 	switch (res) {
 		case 0:
-		System.out.println("c> UNREGISTER OK");
+		System.out.println("UNREGISTER OK");
 		return RC.OK;
 		case 1:
-		System.out.println("c> USER DOES NOT EXIST");
+		System.out.println("USER DOES NOT EXIST");
 		return RC.USER_ERROR;
-		case 2: System.out.println("c> UNREGISTER FAIL");
+		case 2: System.out.println("UNREGISTER FAIL");
 		return RC.ERROR;
 		default:
 		return RC.ERROR;
@@ -140,8 +139,7 @@ static RC connect(String user){
 	int res = -1;
 	try{
 		Socket sc = new Socket(_server, _port);
-		OutputStream ostream = sc.getOutputStream();
-		ObjectOutput s = new ObjectOutputStream(ostream);
+		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
 		receiveSc = new Socket(InetAddress.getLocalHost().getHostAddress(), 0);
@@ -151,13 +149,13 @@ static RC connect(String user){
 			public void run(){
 
 											try{
-																			DataInputStream istream = new DataInputStream(receiveSc.getInputStream());
-																			ObjectInput s = new ObjectInputStream(istream);
+																			DataInputStream istrem = new DataInputStream(receiveSc.getInputStream());
+
 																			while(true) {
-																											if(((String)s.readObject()).equals("SEND_MESSAGE")) {
-																																			String usr = (String)s.readObject();
-																																			String id = (String)s.readObject();
-																																			String msg = (String)s.readObject();
+																											if(((String)istrem.readBytes()).equals("SEND_MESSAGE")) {
+																																			String usr = (String)istrem.readBytes();
+																																			String id = (String)istrem.readBytes();
+																																			String msg = (String)istrem.readBytes();
 
 																																			System.out.println("c> MESSAGE " + id + " FROM " + usr +
 																																																						":\n" + msg + "\nEND\n");
@@ -172,9 +170,12 @@ static RC connect(String user){
 			}
 		};
 
-		s.writeObject("CONNECT");
-		s.writeObject(user);
-		s.writeObject(Integer.toString(port));
+		s.writeBytes("CONNECT\0");
+		s.writeBytes(user);
+		s.writeBytes("\0");
+		s.writeBytes(Integer.toString(port));
+		s.writeBytes("\0");
+
 		s.flush();
 
 		res = istream.readChar();
@@ -188,16 +189,16 @@ static RC connect(String user){
 	}
 	switch (res) {
 	case 0:
-									System.out.println("c> CONNECT OK");
+									System.out.println("CONNECT OK");
 									return RC.OK;
 	case 1:
-									System.out.println("c> CONNECT FAIL, USER DOES NOT EXIST");
+									System.out.println("CONNECT FAIL, USER DOES NOT EXIST");
 									return RC.USER_ERROR;
 	case 2:
-									System.out.println("c> USER ALREADY CONNECTED");
+									System.out.println("USER ALREADY CONNECTED");
 									return RC.ERROR;
 	case 3:
-									System.out.println("c> CONNECT FAIL");
+									System.out.println("CONNECT FAIL");
 									return RC.ERROR;
 	default:
 									return RC.ERROR;
@@ -215,12 +216,13 @@ static RC disconnect(String user){
 								int res = -1;
 								try{
 																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																ObjectOutput s = new ObjectOutputStream(ostream);
+																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																s.writeObject("DISCONNECT");
-																s.writeObject(user);
+																s.writeBytes("DISCONNECT\0");
+																s.writeBytes(user);
+																s.writeBytes("\0");
+
 																s.flush();
 
 																res = istream.readChar();
@@ -236,14 +238,14 @@ static RC disconnect(String user){
 								}
 								switch (res) {
 								case 0:
-																System.out.println("c> DISCONNECT OK");
+																System.out.println("DISCONNECT OK");
 																return RC.OK;
 								case 1:
-																System.out.println("c> DISCONNECT FAIL / USER DOES NOT EXIST");
+																System.out.println("DISCONNECT FAIL / USER DOES NOT EXIST");
 																return RC.USER_ERROR;
-								case 2: System.out.println("c> DISCONNECT FAIL / USER NOT CONNECTED");
+								case 2: System.out.println("DISCONNECT FAIL / USER NOT CONNECTED");
 																return RC.USER_ERROR;
-								case 3: System.out.println("c> DISCONNECT FAIL");
+								case 3: System.out.println("DISCONNECT FAIL");
 																return RC.ERROR;
 								default:
 																return RC.ERROR;
@@ -270,14 +272,17 @@ static RC send(String user, String message){
 
 								try {
 																Socket sc = new Socket(_server, _port);
-																OutputStream ostream = sc.getOutputStream();
-																ObjectOutput s = new ObjectOutputStream(ostream);
+																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																s.writeObject("SEND");
-																s.writeObject(currUser);
-																s.writeObject(user);
-																s.writeObject(message);
+																s.writeBytes("SEND\0");
+																s.writeBytes(currUser);
+																s.writeBytes("\0");
+																s.writeBytes(user);
+																s.writeBytes("\0");
+																s.writeBytes(message);
+																s.writeBytes("\0");
+
 																s.flush();
 
 																sc.close();
