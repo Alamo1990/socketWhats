@@ -10,10 +10,12 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "read_line.c"
 
-// FIXME put in a header file
+#define BUFFER_SIZE 256
+
 struct argumentWrapper {
         char *username;
         int clientFD;

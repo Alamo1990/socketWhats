@@ -10,6 +10,11 @@ pthread_cond_t cond_msg;
 
 struct queue *queueUsers;
 
+// server file descriptor
+int sd;
+// server buffer
+char *buffer;
+
 // Initialize synchronization elements
 void initializeSync(){
         if( pthread_mutex_init(&mutex_msg, NULL) != 0) {
@@ -36,6 +41,20 @@ void destroySync(){
         }
 }
 
+// retrieve CTRL+C signal
+void signal_handler(int sig){
+ printf("Signal handler!!\n" );
+  // close server port
+  close(sd);
+  // free buffer
+  free(buffer);
+  // free queue
+  free(queueUsers);
+  // destroy synchronization elements
+  destroySync();
+  // end process
+  exit(0);
+}
 
 
 void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
@@ -69,13 +88,13 @@ void registerUser(struct argumentWrapper *args){
 
     struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));//si no se aloca desaparece al final del metodo, y en la queue se guarda un puntero a un sitio vacio
     bzero(user, sizeof(struct userInformation));
+
     strcpy(user->username, username);
     user->status = 0; // default status 0
     // Initialize pending messages
     user->pending_messages = queue_new();
 
     enqueue(queueUsers, (void *) user);
-
 
     printf("username %s\n", user->username);
 
@@ -115,7 +134,7 @@ void unregisterUser(struct argumentWrapper *args){
     clientResponse(0, clientAddr, sc); // success
   else
    clientResponse(1, clientAddr, sc); // user does not exist
-   
+
   close(sc);
 }
 
@@ -155,16 +174,15 @@ int main(int argc, char**argv){
   }
 
 
-  // server and client file descriptor
-  int sd, sc;
+  // client file descriptor
+  int sc;
   // sockets addresses
   struct sockaddr_in serverAddr, clientAddr;
 
   int size, val;
-  //int res;
-  //char buffer[50];
-  char *buffer;
-  buffer = (char *) calloc(50,sizeof(char));
+
+  // Allocate memory for buffer
+  buffer = (char *) calloc(BUFFER_SIZE,sizeof(char));
 
 
   sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -185,6 +203,9 @@ int main(int argc, char**argv){
   listen(sd, 5);
   size = sizeof(clientAddr);
 
+  // catch CTRL + C signal and execute handler
+  signal(SIGINT, signal_handler);
+
   while(1){
     printf("Waiting for connection \n");
 
@@ -202,6 +223,7 @@ int main(int argc, char**argv){
     if(!strcmp(buffer, "REGISTER")){
       char *username;
       username = (char *) calloc(256,sizeof(char));
+
       count = readLine(sc, username, 256);
 
       if(count == -1){
@@ -289,7 +311,7 @@ int main(int argc, char**argv){
 
   }// while
 
-   free(buffer);
+  // free(buffer);
    close(sd);
 
   // Destroy synchronization elements

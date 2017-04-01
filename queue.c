@@ -97,15 +97,20 @@ int queue_find_remove(struct queue* s, char * username )
         if (!strcmp(((struct userInformation*)(s->head->data))->username, username)) {
 
                 if (s->head == s->tail) {
+                        //free(((struct userInformation *)(s->head))->pending_messages);
+                        free(s->head->data);
                         free(s->head);
+
                         s->head = s->tail = NULL;
                 }
                 else {
                         struct my_struct* aux = s->head;
+                        free(s->head->data);
                         s->head = s->head->next;
+                        free( ((struct userInformation *)(aux))->pending_messages);
                         free(aux);
                 }
-                
+
                 return 1;
         }
         else {
