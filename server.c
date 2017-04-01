@@ -67,7 +67,8 @@ void registerUser(struct argumentWrapper *args){
   /* CHECK IF ALREADY EXISTS */
   if( queue_find(queueUsers, username) == NULL){
 
-    struct userInformation *user;
+    struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));//si no se aloca desaparece al final del metodo, y en la queue se guarda un puntero a un sitio vacio
+    bzero(user, sizeof(struct userInformation));
     strcpy(user->username, username);
     user->status = 0; // default status 0
     // Initialize pending messages
@@ -76,7 +77,7 @@ void registerUser(struct argumentWrapper *args){
     enqueue(queueUsers, (void *) user);
 
 
-    printf("username %s\n", username);
+    printf("username %s\n", user->username);
 
     //char res = 0;
     //sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );

@@ -187,21 +187,19 @@ void* queue_find(struct queue* s, char * username )
                 printf("One of the head/tail is empty while other is not \n");
                 return NULL;
         }
-
+        printf("here\n");
         user = (struct userInformation*) s->head->data;
+printf("here, user in head: %s\n", user->username);
         if (!strcmp(user->username,username)) {
                 return user;
         }
         else {
-                struct my_struct* aux = s->head;
-                struct userInformation* user;
+          struct my_struct* aux;
 
-                do {
-                        user=(struct userInformation*)(aux->next->data);
-                        if(!strcmp(user->username,username)) return user;
-                        aux = aux->next;
-                } while(aux);
+          for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
+          if (aux->next == NULL)
+                  return NULL;
+          else return ((struct userInformation*)(aux->next->data))->username;
 
-                return NULL;
         }
 }
