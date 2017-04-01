@@ -83,7 +83,7 @@ void registerUser(struct argumentWrapper *args){
     //sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
     clientResponse(0, clientAddr, sc); // success
   }else{
-   clientResponse(1, clientAddr, sc); // user exists
+   clientResponse(1, clientAddr, sc); // user exist
   }
   close(sc);
 
@@ -92,7 +92,7 @@ void registerUser(struct argumentWrapper *args){
 
 
 void unregisterUser(struct argumentWrapper *args){
-
+  printf("in unregister\n");
   char username[sizeof(args->username)];
   int sc;
   struct sockaddr_in clientAddr;
@@ -111,11 +111,11 @@ void unregisterUser(struct argumentWrapper *args){
 
   free(args->username);
 
-  //dequeue(queueUsers, username);
-  clientResponse(0, clientAddr, sc); // success
-  //}else{
-  //  clientResponse(1, clientAddr, sc); // user does not exists
-  //}
+  if(queue_find_remove(queueUsers, username))
+    clientResponse(0, clientAddr, sc); // success
+  else
+   clientResponse(1, clientAddr, sc); // user does not exist
+   
   close(sc);
 }
 

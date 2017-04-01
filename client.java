@@ -157,10 +157,10 @@ static RC connect(String user){
 																																			String id = istrem.readLine();
 																																			String msg = istrem.readLine();
 
-																																			System.out.println("c> MESSAGE " + id + " FROM " + usr +
+																																			System.out.println("MESSAGE " + id + " FROM " + usr +
 																																																						":\n" + msg + "\nEND\n");
 																											}else{} //ASK
-																			} //TODO
+																			}
 
 											}catch( Exception e) {
 																			e.printStackTrace();

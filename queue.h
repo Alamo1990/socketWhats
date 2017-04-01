@@ -25,7 +25,7 @@ void* dequeue( struct queue*);
 /* Return 1 if the queue is empty and 0 otherwise*/
 int queue_empty ( struct queue* s );
 /* If it finds the data in the queue it removes it and returns it. Otherwise it returns NULL */
-void* queue_find_remove(struct queue* s, char* data );
+int queue_find_remove(struct queue* s, char* data );
 /* Create an empty queue */
 struct queue* queue_new(void);
 /* If it finds the data in the queue it returns it. Otherwise it returns NULL */

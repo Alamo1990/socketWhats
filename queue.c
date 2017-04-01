@@ -78,20 +78,20 @@ void* dequeue( struct queue* s )
 /* Search an element and remove it from queue if found
    This function can be specialized for comparing the contents of structures s->data and data instead of pointers to structures
  */
-void* queue_find_remove(struct queue* s, char * username )
+int queue_find_remove(struct queue* s, char * username )
 {
         void * ret;
 
         if( NULL == s ) {
                 //printf("List is empty\n");
-                return NULL;
+                return 0;
         }else if( NULL == s->head && NULL == s->tail ) {
                 //printf("Well, List is empty\n");
-                return NULL;
+                return 0;
         }else if( NULL == s->head || NULL == s->tail ) {
                 printf("There is something seriously wrong with your list\n");
                 printf("One of the head/tail is empty while other is not \n");
-                return NULL;
+                return 0;
         }
 
         if (!strcmp(((struct userInformation*)(s->head->data))->username, username)) {
@@ -105,22 +105,29 @@ void* queue_find_remove(struct queue* s, char * username )
                         s->head = s->head->next;
                         free(aux);
                 }
-                return (s->head->data);
+                
+                return 1;
         }
         else {
                 struct my_struct* aux;
 
+                          printf("here\n");
                 for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
-                if (aux->next == NULL)
-                        return NULL;
+
+                          printf("here\n");
+                          if (aux->next == NULL)
+                        return 0;
                 else {
+                          printf("here\n");
                         struct my_struct* aux2 =  aux->next;
+                          printf("here\n");
                         ret = aux->next->data;
+                          printf("here\n");
                         if (aux->next->next == NULL ) // last element contains the searched data
                                 s->tail = aux;
                         aux->next = aux->next->next;
                         free(aux2);
-                        return ret;
+                        return 1;
                 }
         }
 }
@@ -187,9 +194,7 @@ void* queue_find(struct queue* s, char * username )
                 printf("One of the head/tail is empty while other is not \n");
                 return NULL;
         }
-        printf("here\n");
         user = (struct userInformation*) s->head->data;
-printf("here, user in head: %s\n", user->username);
         if (!strcmp(user->username,username)) {
                 return user;
         }
