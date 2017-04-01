@@ -36,7 +36,6 @@ struct userInformation{
   struct queue *pending_messages;
   unsigned int last_message_id;
 };
-struct queue *queueUsers;
 
 
 void initializeSync(void);

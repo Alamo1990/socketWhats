@@ -152,10 +152,10 @@ static RC connect(String user){
 																			DataInputStream istrem = new DataInputStream(receiveSc.getInputStream());
 
 																			while(true) {
-																											if(((String)istrem.readBytes()).equals("SEND_MESSAGE")) {
-																																			String usr = (String)istrem.readBytes();
-																																			String id = (String)istrem.readBytes();
-																																			String msg = (String)istrem.readBytes();
+																											if((istrem.readLine()).equals("SEND_MESSAGE")) {
+																																			String usr = istrem.readLine();
+																																			String id = istrem.readLine();
+																																			String msg = istrem.readLine();
 
 																																			System.out.println("c> MESSAGE " + id + " FROM " + usr +
 																																																						":\n" + msg + "\nEND\n");

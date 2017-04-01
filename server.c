@@ -65,10 +65,10 @@ void registerUser(struct argumentWrapper *args){
   free(args->username);
 
   /* CHECK IF ALREADY EXISTS */
-  //if( queue_find(queueUsers, username) == NULL){
+  if( queue_find(queueUsers, username) == NULL){
 
     struct userInformation *user;
-    strcpy(user->username, username); 
+    strcpy(user->username, username);
     user->status = 0; // default status 0
     // Initialize pending messages
     user->pending_messages = queue_new();
@@ -81,9 +81,9 @@ void registerUser(struct argumentWrapper *args){
     //char res = 0;
     //sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
     clientResponse(0, clientAddr, sc); // success
-  //}else{
-  //  clientResponse(1, clientAddr, sc); // user exists
-  //}
+  }else{
+   clientResponse(1, clientAddr, sc); // user exists
+  }
   close(sc);
 
 }
