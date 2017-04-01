@@ -83,16 +83,16 @@ void registerUser(struct argumentWrapper *args){
 
   free(args->username);
 
-  /* CHECK IF ALREADY EXISTS */
-  if( queue_find(queueUsers, username) == NULL){
+    if( queue_find(queueUsers, username) == NULL){
 
     struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));//si no se aloca desaparece al final del metodo, y en la queue se guarda un puntero a un sitio vacio
     bzero(user, sizeof(struct userInformation));
 
     strcpy(user->username, username);
-    user->status = 0; // default status 0
+    user->status = OFF; // default status OFF
     // Initialize pending messages
     user->pending_messages = queue_new();
+    user->last_message_id = 0;
 
     enqueue(queueUsers, (void *) user);
 
@@ -139,7 +139,160 @@ void unregisterUser(struct argumentWrapper *args){
 }
 
 
+void  connectUser(struct argumentWrapper *args){
+  char username[sizeof(args->username)];
+  int sc;
+  int port;
+  struct userInformation* user;
+  struct sockaddr_in clientAddr;
 
+  // start critical section
+  pthread_mutex_lock(&mutex_msg);
+
+  strcpy(username,args->username);
+  sc = args->clientFD;
+  clientAddr = args->clientAddr;
+  port = args->clientPort;
+  // release and end critical section
+  msg_not_copied = FALSE;
+  pthread_cond_signal(&cond_msg);
+  pthread_mutex_unlock(&mutex_msg);
+
+  free(args->username);
+
+  if((user = queue_find(queueUsers, username)) != NULL){
+      if(user->status == CONNECTED) clientResponse(2, clientAddr, sc); // user is already connected
+      else{
+        user->user_addr = clientAddr.sin_addr;
+        user->user_port = port;
+        user->status = CONNECTED;
+        clientResponse(0, clientAddr, sc); // success
+      }
+  }else clientResponse(1, clientAddr, sc); // user does not exist
+
+  close(sc);
+}
+
+
+void disconnectUser(struct argumentWrapper *args){
+ printf("in disconnectUser\n");
+ char username[sizeof(args->username)];
+ int sc;
+ struct sockaddr_in clientAddr;
+
+ // start critical section
+ pthread_mutex_lock(&mutex_msg);
+
+ strcpy(username,args->username);
+ sc = args->clientFD;
+ clientAddr = args->clientAddr;
+
+ // release and end critical section
+ msg_not_copied = FALSE;
+ pthread_cond_signal(&cond_msg);
+ pthread_mutex_unlock(&mutex_msg);
+
+ free(args->username);
+
+ struct userInformation *user = queue_find(queueUsers, username);
+
+ if( user != NULL){
+  if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
+   // registered ip and connection ip don't match
+   clientResponse(3, clientAddr, sc);
+  }else if(user->status == CONNECTED){
+   user->status = OFF; // disconnect status
+   user->user_port = 0; // remove port
+   user->user_addr.s_addr = 0; // remove ip
+   clientResponse(0, clientAddr, sc); // success
+  }else{
+   clientResponse(2, clientAddr, sc); // user not connected
+  }
+ }else{
+  clientResponse(1, clientAddr, sc); // user does not exist
+ }
+ close(sc);
+}
+
+
+void sendMsg(struct argumentWrapper *args){
+
+ printf("in sendMsg\n");
+ int sc;
+ struct sockaddr_in clientAddr;
+ char usernameS[256];
+ char usernameD[256];
+ char msg[256];
+ printf("source: %s, destination: %s, message: %s\n",args->username, args->usernameD, args->msg );
+
+ // start critical section
+ pthread_mutex_lock(&mutex_msg);
+ strcpy(usernameS,args->username);
+ strcpy(usernameD,args->usernameD);
+ strcpy(msg,args->msg);
+ sc = args->clientFD;
+ clientAddr = args->clientAddr;
+
+ free(args->username);
+ free(args->usernameD);
+ free(args->msg);
+ // release and end critical section
+ msg_not_copied = FALSE;
+ pthread_cond_signal(&cond_msg);
+ pthread_mutex_unlock(&mutex_msg);
+
+
+ printf("source: %s, destination: %s, message: %s\n",usernameS, usernameD, msg );
+
+// Check sender exists
+if( queue_find(queueUsers, usernameS) == NULL ){
+  printf("Error: sender doesn't exists\n");
+  clientResponse(1, clientAddr, sc);
+  close(sc);
+  return;
+ }
+
+
+ struct userInformation *user = queue_find(queueUsers, usernameD);
+
+ // Check destination exists
+ if( user != NULL ){
+  // message container
+  struct messages *message = (struct messages *) malloc(sizeof(struct messages));
+  bzero(message, sizeof(struct messages));
+
+  // fill fields and update message id
+  strcpy(message->message, msg);
+  message->sender = usernameS;
+  message->receiver = usernameD;
+  message->message_id = user->last_message_id;
+  user->last_message_id = user->last_message_id + 1;
+
+  printf("last message id %d\n", user->last_message_id);
+
+  // enqueue in pending list
+  enqueue(user->pending_messages, (void *)message);
+
+  clientResponse(0, clientAddr, sc);
+
+  // send message id
+  unsigned int msg_id = message->message_id;
+  double x = (double)(msg_id);
+  int n = log10(x) + 1;
+  char response[n];
+  int i;
+  for ( i = 0; i < n; ++i, msg_id /= 10 ){
+   response[i] = msg_id % 10;
+  }
+
+  sendto(sc, &response, n, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
+
+ }else{
+  clientResponse(1, clientAddr, sc);
+ }
+/////////////////////////////////
+ close(sc);
+}
 
 
 int main(int argc, char**argv){
@@ -306,6 +459,167 @@ int main(int argc, char**argv){
       // end critical section
       msg_not_copied = TRUE;
       pthread_mutex_unlock(&mutex_msg);
+
+    }else if(!strcmp(buffer, "CONNECT")){
+      char *username;
+      char *portString;
+      int port;
+      username = (char *) calloc(256,sizeof(char));
+      portString = (char *) calloc(8,sizeof(char));
+      count = readLine(sc, username, 256);
+
+      if(count == -1){
+        perror("Error reading username: ");
+        clientResponse(2, clientAddr, sc);
+        close(sc);
+        continue;
+      }else if(count == 0){
+        printf("Error: username empty\n");
+        clientResponse(2, clientAddr, sc);
+        close(sc);
+        continue;
+      }
+      readLine(sc, portString, 8);
+      port = atoi(portString);
+
+      printf("count: %d, username: %s, port: %d\n", count, username, port);
+     // free(username);
+     free(portString);
+
+      struct argumentWrapper args;
+      args.username = username;
+      args.clientFD = sc;
+      args.clientAddr = clientAddr;
+      args.clientPort = port;
+
+      pthread_t thid;
+      // create new thread with message received
+      if( pthread_create( &thid, &thread_attributes, (void *) connectUser, &args) != 0 ){
+        perror("Error creating thread");
+        close(sc);
+        continue;
+      }
+
+      // start critical section
+    pthread_mutex_lock(&mutex_msg);
+    while(msg_not_copied){
+      pthread_cond_wait(&cond_msg, &mutex_msg);
+    }
+
+    // end critical section
+    msg_not_copied = TRUE;
+    pthread_mutex_unlock(&mutex_msg);
+
+  }else if(!strcmp(buffer, "DISCONNECT")){
+     char *username;
+     username = (char *) calloc(256,sizeof(char));
+     count = readLine(sc, username, 256);
+
+     if(count == -1){
+       perror("Error reading username: ");
+       clientResponse(3, clientAddr, sc);
+       close(sc);
+       continue;
+     }else if(count == 0){
+       printf("Error: username empty\n");
+       clientResponse(3, clientAddr, sc);
+       close(sc);
+       continue;
+     }
+
+     struct argumentWrapper args;
+     args.username = username;
+     args.clientFD = sc;
+     args.clientAddr = clientAddr;
+
+     pthread_t thid;
+     // create new thread with message received
+     if( pthread_create( &thid, &thread_attributes, (void *) disconnectUser, &args) != 0 ){
+       perror("Error creating thread");
+       close(sc);
+       continue;
+     }
+     // start critical section
+     pthread_mutex_lock(&mutex_msg);
+     while(msg_not_copied){
+       pthread_cond_wait(&cond_msg, &mutex_msg);
+     }
+     // end critical section
+     msg_not_copied = TRUE;
+     pthread_mutex_unlock(&mutex_msg);
+
+    }else if(!strcmp(buffer, "SEND")){
+     // get sender user name
+     char *usernameS;
+     usernameS = (char *) calloc(256,sizeof(char));
+     count = readLine(sc, usernameS, 256);
+     if(count == -1){
+       perror("Error reading source username: ");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }else if(count == 0){
+       printf("Error: source username empty\n");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }
+
+
+     // get destination user name
+     char *usernameD;
+     usernameD = (char *) calloc(256,sizeof(char));
+     count = readLine(sc, usernameD, 256);
+     if(count == -1){
+       perror("Error reading destination username: ");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }else if(count == 0){
+       printf("Error: destination username empty\n");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }
+
+     char *msg;
+     msg = (char *) calloc(256,sizeof(char));
+     count = readLine(sc, msg, 256);
+     if(count == -1){
+       perror("Error reading message: ");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }else if(count == 0){
+       printf("Error: message empty\n");
+       clientResponse(2, clientAddr, sc);
+       close(sc);
+       continue;
+     }
+
+     struct argumentWrapper args;
+     args.clientFD = sc;
+     args.clientAddr = clientAddr;
+     args.username = usernameS;
+     args.usernameD = usernameD;
+     args.msg = msg;
+
+
+     pthread_t thid;
+     // create new thread with message received
+     if( pthread_create( &thid, &thread_attributes, (void *) sendMsg, &args) != 0 ){
+       perror("Error creating thread");
+       close(sc);
+       continue;
+     }
+     // start critical section
+     pthread_mutex_lock(&mutex_msg);
+     while(msg_not_copied){
+       pthread_cond_wait(&cond_msg, &mutex_msg);
+     }
+     // end critical section
+     msg_not_copied = TRUE;
+     pthread_mutex_unlock(&mutex_msg);
 
     }
 

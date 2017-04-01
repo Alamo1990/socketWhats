@@ -142,14 +142,15 @@ static RC connect(String user){
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-		receiveSc = new Socket(InetAddress.getLocalHost().getHostAddress(), 0);
-		int port = receiveSc.getLocalPort();
+		ServerSocket serverSc = new ServerSocket(0);
+		int port = serverSc.getLocalPort();
 		listener = new Thread(){
 			@Override
 			public void run(){
 
 											try{
-																			DataInputStream istrem = new DataInputStream(receiveSc.getInputStream());
+																			Socket recSc = serverSc.accept();
+																			DataInputStream istrem = new DataInputStream(recSc.getInputStream());
 
 																			while(true) {
 																											if((istrem.readLine()).equals("SEND_MESSAGE")) {
@@ -170,6 +171,8 @@ static RC connect(String user){
 			}
 		};
 
+		currUser = user; // set the current user name
+
 		s.writeBytes("CONNECT\0");
 		s.writeBytes(user);
 		s.writeBytes("\0");
@@ -178,10 +181,11 @@ static RC connect(String user){
 
 		s.flush();
 
-		res = istream.readChar();
-
+		byte[] msg = new byte[1];
+		//res = istream.readChar();
+		int bytesRead = istream.read(msg);
+		res = msg[0];
 		sc.close();
-		listener.start();
 
 	}catch( Exception e) {
 									e.printStackTrace();
@@ -190,17 +194,22 @@ static RC connect(String user){
 	switch (res) {
 	case 0:
 									System.out.println("CONNECT OK");
+									listener.start();
 									return RC.OK;
 	case 1:
 									System.out.println("CONNECT FAIL, USER DOES NOT EXIST");
+									// serverSc.close();
 									return RC.USER_ERROR;
 	case 2:
 									System.out.println("USER ALREADY CONNECTED");
+									// serverSc.close();
 									return RC.ERROR;
 	case 3:
 									System.out.println("CONNECT FAIL");
+									// serverSc.close();
 									return RC.ERROR;
 	default:
+									// serverSc.close();
 									return RC.ERROR;
 	}
 }
@@ -215,22 +224,37 @@ static RC connect(String user){
 static RC disconnect(String user){
 								int res = -1;
 								try{
+																// Socket sc = new Socket(_server, _port);
+																// DataOutputStream s = new DataOutputStream(sc.getOutputStream());
+																// DataInputStream istream = new DataInputStream(sc.getInputStream());
+																//
+																// s.writeBytes("DISCONNECT\0");
+																// s.writeBytes(user);
+																// s.writeBytes("\0");
+																//
+																// s.flush();
+																//
+																// res = istream.readChar();
+																//
+																// sc.close();
+																//
+																// listener.stop(); //REVIEW
+																// receiveSc.close();
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
+
 																s.writeBytes("DISCONNECT\0");
 																s.writeBytes(user);
-																s.writeBytes("\0");
+																s.writeByte('\0');
 
 																s.flush();
 
-																res = istream.readChar();
-
+																byte[] msg = new byte[1];
+																int bytesRead = istream.read(msg);
+																res = msg[0];
 																sc.close();
-
-																listener.stop(); //REVIEW
-																receiveSc.close();
 
 								}catch( Exception e) {
 																e.printStackTrace();
@@ -261,7 +285,9 @@ static RC disconnect(String user){
  * @return ERROR the user does not exist or another error occurred
  */
 static RC send(String user, String message){
-
+							//FIXME
+							currUser = "pep";
+ 							int res = -1;
 								if(message.length() > 255) {
 																System.out.println("c> SEND FAIL"); //ASK
 																return RC.USER_ERROR;
@@ -271,24 +297,35 @@ static RC send(String user, String message){
 								}
 
 								try {
+																// CHECK MESSAGE LENGTH ?
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
 																s.writeBytes("SEND\0");
 																s.writeBytes(currUser);
-																s.writeBytes("\0");
+																s.writeByte('\0');
 																s.writeBytes(user);
-																s.writeBytes("\0");
+																s.writeByte('\0');
 																s.writeBytes(message);
-																s.writeBytes("\0");
+																s.writeByte('\0');
 
 																s.flush();
 
+																byte[] msg = new byte[1];
+																int bytesRead = istream.read(msg);
+																res = msg[0];
+
+																byte[] msg_id = new byte[5];
+																if(res == '0'){
+																	bytesRead = istream.read(msg_id);
+																}
+																System.out.println("res " + res + " msg " + msg);
 																sc.close();
-																switch(istream.readChar()) {
+
+																switch(res) {
 																case 0:
-																								System.out.println("c> SEND OK - MESSAGE "+istream.readChar());
+																								System.out.println("c> SEND OK - MESSAGE "+ msg_id);
 																								return RC.OK;
 																case 1:
 																								System.out.println("c> SEND FAIL / USER DOES NOT EXIST");
