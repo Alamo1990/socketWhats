@@ -11,13 +11,18 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <signal.h>
+#include <math.h>
 
 #include "read_line.c"
 
 #define BUFFER_SIZE 256
+#define CONNECTED 1
+#define OFF 0
 
 struct argumentWrapper {
         char *username;
+        char *usernameD;
+        char *msg;
         int clientFD;
         struct sockaddr_in clientAddr;
         int clientPort;
@@ -25,7 +30,7 @@ struct argumentWrapper {
 
 struct messages {
         unsigned int message_id;
-        char *message;
+        char message[256];
         char *sender;
         char *receiver;
 };

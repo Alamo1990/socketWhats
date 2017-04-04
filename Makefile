@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -lpthread -lrt
+CFLAGS=-g -Wall -lpthread -lrt -lm
 
 JFLAGS = -g
 JC = javac
