@@ -43,7 +43,6 @@ void destroySync(){
 
 // retrieve CTRL+C signal
 void signal_handler(int sig){
- printf("Signal handler!!\n" );
   // close server port
   close(sd);
   // free buffer
@@ -96,13 +95,11 @@ void registerUser(struct argumentWrapper *args){
 
     enqueue(queueUsers, (void *) user);
 
-    printf("username %s\n", user->username);
-
-    //char res = 0;
-    //sendto(sc, &res, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
     clientResponse(0, clientAddr, sc); // success
+    printf("s> REGISTER %s OK\n", username );
   }else{
    clientResponse(1, clientAddr, sc); // user exist
+   printf("s> REGISTER %s FAIL\n", username );
   }
   close(sc);
 
@@ -130,11 +127,13 @@ void unregisterUser(struct argumentWrapper *args){
 
   free(args->username);
 
-  if(queue_find_remove(queueUsers, username))
+  if(queue_find_remove(queueUsers, username)){
     clientResponse(0, clientAddr, sc); // success
-  else
+    printf("s> UNREGISTER %s OK\n", username );
+  }else{
    clientResponse(1, clientAddr, sc); // user does not exist
-
+   printf("s> UNREGISTER %s FAIL\n", username );
+  }
   close(sc);
 }
 
@@ -160,14 +159,21 @@ void  connectUser(struct argumentWrapper *args){
   free(args->username);
 printf("in connectUser\n");
   if((user = queue_find(queueUsers, username)) != NULL){
-      if(user->status == CONNECTED) clientResponse(2, clientAddr, sc); // user is already connected
-      else{
+      if(user->status == CONNECTED){
+
+       clientResponse(2, clientAddr, sc); // user is already connected
+       printf("s> CONNECT %s FAIL\n", username );
+      }else{
         user->user_addr = clientAddr.sin_addr;
         user->user_port = port;
         user->status = CONNECTED;
         clientResponse(0, clientAddr, sc); // success
+        printf("s> CONNECT %s OK\n", username );
       }
-  }else clientResponse(1, clientAddr, sc); // user does not exist
+  }else{
+    clientResponse(1, clientAddr, sc); // user does not exist
+    printf("s> CONNECT %s FAIL\n", username );
+   }
 
   close(sc);
 }
@@ -199,16 +205,20 @@ void disconnectUser(struct argumentWrapper *args){
   if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
    // registered ip and connection ip don't match
    clientResponse(3, clientAddr, sc);
+   printf("s> DISCONNECT %s FAIL\n", username );
   }else if(user->status == CONNECTED){
    user->status = OFF; // disconnect status
    user->user_port = 0; // remove port
    user->user_addr.s_addr = 0; // remove ip
    clientResponse(0, clientAddr, sc); // success
+   printf("s> DISCONNECT %s OK\n", username );
   }else{
    clientResponse(2, clientAddr, sc); // user not connected
+   printf("s> DISCONNECT %s FAIL\n", username );
   }
  }else{
   clientResponse(1, clientAddr, sc); // user does not exist
+  printf("s> DISCONNECT %s FAIL\n", username );
  }
  close(sc);
 }
@@ -374,6 +384,12 @@ int main(int argc, char**argv){
 
   // catch CTRL + C signal and execute handler
   signal(SIGINT, signal_handler);
+
+//NINJA
+  //char ipAddress[INET_ADDRSTRLEN];
+  //inet_ntop(AF_INET, (void *)&(serverAddr.sin_addr), ipAddress, INET_ADDRSTRLEN);
+  // Console output
+  printf("s> init server %s:%d\n", inet_ntoa( ((struct sockaddr_in *)&serverAddr)->sin_addr  ), port );
 
   while(1){
     printf("Waiting for connection \n");
