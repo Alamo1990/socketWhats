@@ -127,6 +127,10 @@ static RC unregister(String user){
 	}
 }
 
+
+
+
+
 /**
  * @param user - User name to connect to the system
  *
@@ -137,16 +141,22 @@ static RC unregister(String user){
 static RC connect(String user){
 
 	int res = -1;
+	int port;
+	ServerSocket serverSc;
 	try{
 		Socket sc = new Socket(_server, _port);
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-		ServerSocket serverSc = new ServerSocket(0);
-		int port = serverSc.getLocalPort();
-		listener = new Thread(){
+		// ServerSocket serverSc = new ServerSocket(0);
+		// int port = serverSc.getLocalPort();
+		 serverSc = new ServerSocket(0);
+		 port = serverSc.getLocalPort();
+
+		/*listener = new Thread(){
 			@Override
 			public void run(){
+				System.out.println("Waiting for server");
 
 											try{
 																			Socket recSc = serverSc.accept();
@@ -171,7 +181,7 @@ static RC connect(String user){
 
 			}
 		};
-
+*/
 		currUser = user; // set the current user name
 
 		s.writeBytes("CONNECT\0");
@@ -193,7 +203,8 @@ static RC connect(String user){
 	switch (res) {
 	case 0:
 									System.out.println("CONNECT OK");
-									listener.start();
+									//listener.start();
+									new receiveThread(port,serverSc).start();
 									return RC.OK;
 	case 1:
 									System.out.println("CONNECT FAIL, USER DOES NOT EXIST");
@@ -237,7 +248,7 @@ static RC disconnect(String user){
 																//
 																// sc.close();
 																//
-																listener.stop(); //REVIEW
+							//listener.stop(); //REVIEW
 																// receiveSc.close();
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
@@ -489,4 +500,86 @@ public static void main(String[] argv)
 								shell();
 								System.out.println("+++ FINISHED +++");
 }
+}
+
+
+class receiveThread extends Thread{
+	int port;
+	ServerSocket serverSc;
+	public receiveThread(int port, ServerSocket serverSc){
+		this.port = port;
+		this.serverSc = serverSc;
+	}
+		public void run(){
+			// try {
+   //         while (true) {
+   //             Socket socket = serverSc.accept();
+   //             try {
+   //                 PrintWriter out =
+   //                     new PrintWriter(socket.getOutputStream(), true);
+   //                 out.println(new Date().toString());
+   //             } finally {
+   //                 socket.close();
+   //             }
+   //         }
+   //     }catch( Exception e) {
+			// 						try{
+   //         serverSc.close();
+			// 							}catch( Exception ee) {
+			// 								ee.printStackTrace();
+			// 							}
+   //     }
+
+
+
+			try{
+				System.out.println("HELLO IM A THREAD with port " + this.port);
+				//ServerSocket sc = new ServerSocket(port);
+				Socket clientSocket = serverSc.accept();
+				System.out.println("Connection received from " + clientSocket.getInetAddress().getHostName());
+
+				DataOutputStream s = new DataOutputStream(clientSocket.getOutputStream());
+				//DataInputStream istream = new DataInputStream(clientSocket.getInputStream());
+				//byte[] msg = new byte[256];
+
+				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
+				BufferedReader in = new BufferedReader(isr);
+				String line = "";
+				while(true){
+
+					while ((line = in.readLine()) != null) {
+					    //System.out.println(line);
+					    //response = response + line + "\n";
+									if(line.equals("SEND_MESSAGE")){
+										String usr = in.readLine();
+										String id = in.readLine();
+										String msg = in.readLine();
+
+
+										System.out.println("c> MESSAGE " + id + " FROM " + usr +
+																													":\n" + msg + "\nEND\n");
+									}
+					    if (in.ready() == false) {
+					        break;
+					    }
+							}
+				}
+
+				//
+				//
+				// //String msg;
+				// //res = istream.readChar();
+				// byte m = istream.readByte();
+				// int count = 0;
+				// while(m!='\0'){
+				// 	msg[0] = m;
+				// 	m = istream.readByte();
+				// }
+				// System.out.println("RESPONSE: " + msg);
+				// //sc.close();
+			}catch( Exception e) {
+												e.printStackTrace();
+				}
+
+		}
 }

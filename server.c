@@ -61,6 +61,45 @@ void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
   sendto(sc, &response, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
 }
 
+//void clientSentMessages(struct userInformation* user,struct sockaddr_in clientAddr, int clientPort){
+void clientSentMessages(struct userInformation* user, int clientPort){
+ printf("_______clientSentMessages\n" );
+ int sd;
+  struct sockaddr_in server_addr;
+  struct hostent *hp;
+  sd = socket(AF_INET, SOCK_STREAM, 0);
+  bzero( (char *)&server_addr, sizeof(server_addr) );
+
+  //hp = gethostbyname( inet_ntoa( ((struct sockaddr_in *)&clientAddr)->sin_addr) );
+  hp = gethostbyname( inet_ntoa( user->user_addr) );
+
+  memcpy( &(server_addr.sin_addr), hp->h_addr, hp->h_length);
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(clientPort);
+
+    char *command = "SEND_MESSAGE\n";
+    char *usr = "Pepe\n";
+    char *id = "312321\n";
+    char *msg = "HOLA LOCO\n";
+    char response = 'a';
+    connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+
+    //send(sd, (char *)&num, sizeof(int), 0);
+    //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
+    //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+
+    sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+
+    close(sd);
+}
+
 
 void registerUser(struct argumentWrapper *args){
 
@@ -160,7 +199,6 @@ void  connectUser(struct argumentWrapper *args){
 printf("in connectUser\n");
   if((user = queue_find(queueUsers, username)) != NULL){
       if(user->status == CONNECTED){
-
        clientResponse(2, clientAddr, sc); // user is already connected
        printf("s> CONNECT %s FAIL\n", username );
       }else{
@@ -169,6 +207,13 @@ printf("in connectUser\n");
         user->status = CONNECTED;
         clientResponse(0, clientAddr, sc); // success
         printf("s> CONNECT %s OK\n", username );
+
+       //NINJA
+       //if( !queue_empty(user->pending_messages)){
+         //clientSentMessages(user,clientAddr, port);
+         clientSentMessages(user,port);
+       //}
+
       }
   }else{
     clientResponse(1, clientAddr, sc); // user does not exist
