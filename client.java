@@ -545,11 +545,72 @@ class receiveThread extends Thread{
 				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
 				BufferedReader in = new BufferedReader(isr);
 				String line = "";
-				while(true){
+				boolean end = false;
+				while(!end){
 
-					while ((line = in.readLine()) != null) {
+							 //char []character =  new char[1];
+								String command = "";
+								String usr = "";
+								String id = "";
+								String msg = "";
+								char character;
+								// while( (character = (char) (in.read()) ) != '\0' ){
+								// 	System.out.println(character);
+								// 	command += character;
+								// }
+
+								int x;
+								// while(  x != (int)('\0') ){
+								// 		//System.out.println("WEKoooo " + x);
+								// 		command += (char)(x);
+								// 		x = in.read();
+								// }
+								int count = 0;
+								while(  true ){
+										//System.out.println("WEKoooo " + x);
+										x= in.read();
+										if(count == 4){
+											break;
+										}else if( x == 0){
+											count++;
+											continue;
+										}else if(x == (int)('\0')){
+											count++;
+											continue;
+										}else{
+											switch(count){
+												case 0:
+													command += (char)(x);
+													break;
+													case 1:
+													usr += (char)(x);
+													break;
+													case 2:
+													id += (char)(x);
+													break;
+													case 3:
+													msg += (char)(x);
+													break;
+											}
+
+										}
+
+
+										// command += (char)(x);
+										// x = in.read();
+								}
+
+
+								// System.out.println(command);
+								// System.out.println(usr);
+								// System.out.println(count);
+								System.out.println("c> MESSAGE " + id + " FROM " + usr +
+																											":\n" + msg + "\nEND\n");
+								
+								/*while ((line = in.readLine()) != null) {
 					    //System.out.println(line);
 					    //response = response + line + "\n";
+
 									if(line.equals("SEND_MESSAGE")){
 										String usr = in.readLine();
 										String id = in.readLine();
@@ -562,7 +623,8 @@ class receiveThread extends Thread{
 					    if (in.ready() == false) {
 					        break;
 					    }
-							}
+					}*/
+				//	System.out.println("c> MESSAGE " + id + " FROM " + usr +	":\n" + msg + "\nEND\n");
 				}
 
 				//
@@ -582,4 +644,8 @@ class receiveThread extends Thread{
 				}
 
 		}
+
+
+
+
 }

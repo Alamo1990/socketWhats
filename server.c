@@ -77,20 +77,20 @@ void clientSentMessages(struct userInformation* user, int clientPort){
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(clientPort);
 
-    char *command = "SEND_MESSAGE\n";
-    char *usr = "Pepe\n";
-    char *id = "312321\n";
-    char *msg = "HOLA LOCO\n";
+    char *command = "SEND_MESSAGE\0";
+    char *usr = "Pepe\0";
+    char *id = "312321\0";
+    char *msg = "HOLA LOCO\0";
     char response = 'a';
     connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
 
     //send(sd, (char *)&num, sizeof(int), 0);
     //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
     //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, command, strlen(command)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, usr, strlen(usr)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, id, strlen(id)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    sendto(sd, msg, strlen(msg)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
 
     sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
     sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
