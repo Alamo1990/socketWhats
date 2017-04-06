@@ -105,9 +105,9 @@ int queue_find_remove(struct queue* s, char * username )
                 }
                 else {
                         struct my_struct* aux = s->head;
+                        free( ((struct userInformation *)(aux))->pending_messages);
                         free(s->head->data);
                         s->head = s->head->next;
-                        free( ((struct userInformation *)(aux))->pending_messages);
                         free(aux);
                 }
 
@@ -180,6 +180,7 @@ void queue_print_element(struct my_struct* p )
  */
 void* queue_find(struct queue* s, char * username )
 {
+   printf("USERNAME GIVEN TO SEARCH %s\n",username );
         struct userInformation* user;
 
         if( NULL == s )
@@ -205,11 +206,16 @@ void* queue_find(struct queue* s, char * username )
         }
         else {
           struct my_struct* aux;
-
-          for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
-          if (aux->next == NULL)
+          struct userInformation * temp;
+//          for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
+          for ( aux = s->head; aux->next != NULL; aux = aux->next){
+            if(!strcmp(((struct userInformation*)(aux->next->data))->username, username)){
+             return ((struct userInformation*)(aux->next->data))->username;
+            }
+          }
+          //if (aux->next == NULL)
                   return NULL;
-          else return ((struct userInformation*)(aux->next->data))->username;
+          //else return ((struct userInformation*)(aux->next->data))->username;
 
         }
 }

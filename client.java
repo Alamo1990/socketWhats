@@ -407,7 +407,9 @@ static void shell()
 																																else if (line[0].equals("SEND")) {
 																																								if  (line.length >= 3) {
 																																																// Remove first two words
-																																																String message = input.substring(input.indexOf(' ')+1).substring(input.indexOf(' ')+1);
+																																																//String message = input.substring(input.indexOf(' ')+1).substring(input.indexOf(' ')+1);
+																																																String message = input.substring(input.indexOf(' ')+1);
+																																																message = message.substring(message.indexOf(' ')+1);
 																																																send(line[1], message); // userName = line[1]
 																																								} else {
 																																																System.out.println("Syntax error. Usage: SEND <userName> <message>");
@@ -606,7 +608,7 @@ class receiveThread extends Thread{
 								// System.out.println(count);
 								System.out.println("c> MESSAGE " + id + " FROM " + usr +
 																											":\n" + msg + "\nEND\n");
-								
+
 								/*while ((line = in.readLine()) != null) {
 					    //System.out.println(line);
 					    //response = response + line + "\n";

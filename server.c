@@ -58,12 +58,13 @@ void signal_handler(int sig){
 
 void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
   // Response to client
-  sendto(sc, &response, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
+  //sendto(sc, &response, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
+  send(sc, &response, 1, 0);
 }
-
+// NINJA
 //void clientSentMessages(struct userInformation* user,struct sockaddr_in clientAddr, int clientPort){
 void clientSentMessages(struct userInformation* user, int clientPort){
- printf("_______clientSentMessages\n" );
+
  int sd;
   struct sockaddr_in server_addr;
   struct hostent *hp;
@@ -81,34 +82,56 @@ void clientSentMessages(struct userInformation* user, int clientPort){
     char *usr = "Pepe\0";
     char *id = "312321\0";
     char *msg = "HOLA LOCO\0";
-    char response = 'a';
+    char *endMsg = '\0';
     connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+
+    while( !queue_empty(user->pending_messages) ){
+     struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
+     send(sd, command, strlen(command)+1, 0);
+     send(sd, nextMsg->sender, strlen(command)+1, 0);
+     send(sd, (char *)&nextMsg->message_id, sizeof(unsigned int)+1, 0);
+     send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0);
+
+     printf("s> MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+     //send(sd, endMsg, strlen(endMsg)+1, 0);
+    }
 
     //send(sd, (char *)&num, sizeof(int), 0);
     //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
     //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, command, strlen(command)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, usr, strlen(usr)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, id, strlen(id)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, msg, strlen(msg)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, command, strlen(command)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, usr, strlen(usr)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, id, strlen(id)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, msg, strlen(msg)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
 
-    sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+    //sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+
+    // send(sd, command, strlen(command)+1, 0);
+    // send(sd, usr, strlen(usr)+1, 0);
+    // send(sd, id, strlen(id)+1, 0);
+    // send(sd, msg, strlen(msg)+1, 0);
+    //
+    // send(sd, command, strlen(command)+1, 0);
+    // send(sd, usr, strlen(usr)+1, 0);
+    // send(sd, id, strlen(id)+1, 0);
+    // send(sd, msg, strlen(msg)+1, 0);
+
 
     close(sd);
 }
 
 
 void registerUser(struct argumentWrapper *args){
-
+ // start critical section
+ pthread_mutex_lock(&mutex_msg);
   char username[sizeof(args->username)];
   int sc;
   struct sockaddr_in clientAddr;
 
-  // start critical section
-  pthread_mutex_lock(&mutex_msg);
+
 
   strcpy(username,args->username);
   sc = args->clientFD;
@@ -121,9 +144,12 @@ void registerUser(struct argumentWrapper *args){
 
   free(args->username);
 
-    if( queue_find(queueUsers, username) == NULL){
+  printf("___username send to find: %s \n", username);
+  struct userInformation *usr = queue_find(queueUsers, username);
+    //if( queue_find(queueUsers, username) == NULL){
+    if( usr == NULL){
 
-    struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));//si no se aloca desaparece al final del metodo, y en la queue se guarda un puntero a un sitio vacio
+    struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));
     bzero(user, sizeof(struct userInformation));
 
     strcpy(user->username, username);
@@ -137,6 +163,8 @@ void registerUser(struct argumentWrapper *args){
     clientResponse(0, clientAddr, sc); // success
     printf("s> REGISTER %s OK\n", username );
   }else{
+   printf("___username given: %s \n", username);
+   printf("USER already registered %s //  status:%c\n", usr->username, usr->status);
    clientResponse(1, clientAddr, sc); // user exist
    printf("s> REGISTER %s FAIL\n", username );
   }
@@ -196,7 +224,6 @@ void  connectUser(struct argumentWrapper *args){
   pthread_mutex_unlock(&mutex_msg);
 
   free(args->username);
-printf("in connectUser\n");
   if((user = queue_find(queueUsers, username)) != NULL){
       if(user->status == CONNECTED){
        clientResponse(2, clientAddr, sc); // user is already connected
@@ -208,7 +235,7 @@ printf("in connectUser\n");
         clientResponse(0, clientAddr, sc); // success
         printf("s> CONNECT %s OK\n", username );
 
-       //NINJA
+
        //if( !queue_empty(user->pending_messages)){
          //clientSentMessages(user,clientAddr, port);
          clientSentMessages(user,port);
@@ -468,7 +495,6 @@ int main(int argc, char**argv){
         continue;
       }
 
-      printf("count: %d, username: %s\n", count,username);
      // free(username);
 
       struct argumentWrapper args;
