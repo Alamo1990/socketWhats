@@ -551,6 +551,7 @@ class receiveThread extends Thread{
 
 
 			try{
+					while(true){
 				System.out.println("HELLO IM A THREAD with port " + this.port);
 				//ServerSocket sc = new ServerSocket(port);
 				Socket clientSocket = this.serverSc.accept();
@@ -564,7 +565,7 @@ class receiveThread extends Thread{
 				BufferedReader in = new BufferedReader(isr);
 				String line = "";
 				boolean end = false;
-				while(!end){
+
 
 					// if( read(istream).equals("SEND_MESSAGE")) {
 					//
@@ -597,15 +598,18 @@ class receiveThread extends Thread{
 
 
 								int count = 0;
-								while( true){
+								//while( true){
+								if(in.ready()){
+										System.out.println("REAdy");
 
+									while(count < 4){
 										x= in.read();
 
 									//System.out.println("read: " + (char)(x));
 
 
 										if(count == 4){
-											count  = 0;
+											//count  = 0;
 											break;
 										}else if( x == 0){
 											//System.out.println("char 0 found");
@@ -633,17 +637,20 @@ class receiveThread extends Thread{
 
 										}
 
+									}//while if count < 4
+
 
 										// command += (char)(x);
 										// x = in.read();
+										System.out.println("MESSAGE " + id + " FROM " + usr +
+									 																			":\n" + msg + "\nEND\n");
 								}// while
 
 
 								// System.out.println(command);
 								// System.out.println(usr);
 								// System.out.println(count);
-								 System.out.println("MESSAGE " + id + " FROM " + usr +
-								 																			":\n" + msg + "\nEND\n");
+								 //System.out.println("MESSAGE " + id + " FROM " + usr + ":\n" + msg + "\nEND\n");
 
 								/*while ((line = in.readLine()) != null) {
 					    //System.out.println(line);
@@ -664,6 +671,7 @@ class receiveThread extends Thread{
 					    }
 					}*/
 				//	System.out.println("c> MESSAGE " + id + " FROM " + usr +	":\n" + msg + "\nEND\n");
+
 				}
 
 				//
