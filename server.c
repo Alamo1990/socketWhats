@@ -238,7 +238,7 @@ void  connectUser(struct argumentWrapper *args){
 
        //if( !queue_empty(user->pending_messages)){
          //clientSentMessages(user,clientAddr, port);
-         clientSentMessages(user,port);
+        //  clientSentMessages(user,port);
        //}
 
       }
@@ -366,7 +366,7 @@ if( queue_find(queueUsers, usernameS) == NULL ){
     printf("Response ID: %s\n", response);
     sendto(sc, &response, n, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
 
-  if(user->status == CONNECTED){//Send message straight away FIXME
+  if(user->status == CONNECTED){//Send message straight away FIXME must also dequeue
     printf("User %s connected\n", user->username);
     int clientSocket;
     struct sockaddr_in client_addr;
@@ -378,12 +378,17 @@ if( queue_find(queueUsers, usernameS) == NULL ){
     memcpy(&(client_addr.sin_addr), &(user->user_addr), sizeof(user->user_addr));
     client_addr.sin_family = AF_INET;
     client_addr.sin_port = htons(user->user_port);
-
+    printf("Client RECEIVE IS AT: %s:%d\n", inet_ntoa(client_addr.sin_addr), user->user_port);
     connect(clientSocket, (struct sockaddr *)&client_addr, sizeof(client_addr));
 
+    struct messages* message= dequeue(user->pending_messages);
+    char * idString = (char*)malloc(32*sizeof(char));
+    sprintf(idString, "%d\0", message->message_id);
+    printf("Sending %s(%s) to %s\n", message->message, idString, message->sender);
     send(clientSocket, "SEND_MESSAGE\0", 16, 0);
-    sendto(clientSocket, &msg, 256, 0, (struct sockaddr *) &client_addr,sizeof(client_addr) );
-
+    send(clientSocket, message->sender, 256, 0);
+    send(clientSocket, idString, 32, 0);
+    send(clientSocket, message->message, 256, 0);
   }
  }else{
   clientResponse(1, clientAddr, sc);

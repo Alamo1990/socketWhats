@@ -26,6 +26,7 @@ private static String currUser = null;
 private static Thread listener;
 private static Socket receiveSc; //ASK
 
+
 /********************* METHODS ********************/
 
 /**
@@ -141,8 +142,8 @@ static RC unregister(String user){
 static RC connect(String user){
 
 	int res = -1;
-	int port;
 	ServerSocket serverSc;
+	int port;
 	try{
 		Socket sc = new Socket(_server, _port);
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
@@ -490,8 +491,7 @@ static boolean parseArguments(String [] argv)
 
 /********************* MAIN **********************/
 
-public static void main(String[] argv)
-{
+public static void main(String[] argv){
 								if(!parseArguments(argv)) {
 																usage();
 																return;
@@ -511,6 +511,17 @@ class receiveThread extends Thread{
 	public receiveThread(int port, ServerSocket serverSc){
 		this.port = port;
 		this.serverSc = serverSc;
+	}
+	private String read(InputStream in){
+		String ret = "";
+		int b;
+		try{
+			while((b = in.read()) > 0) ret += (char)b;
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		System.out.println("Message received: "  + ret);
+		return ret;
 	}
 		public void run(){
 			// try {
@@ -537,77 +548,87 @@ class receiveThread extends Thread{
 			try{
 				System.out.println("HELLO IM A THREAD with port " + this.port);
 				//ServerSocket sc = new ServerSocket(port);
-				Socket clientSocket = serverSc.accept();
+				Socket clientSocket = this.serverSc.accept();
 				System.out.println("Connection received from " + clientSocket.getInetAddress().getHostName());
 
 				DataOutputStream s = new DataOutputStream(clientSocket.getOutputStream());
-				//DataInputStream istream = new DataInputStream(clientSocket.getInputStream());
+				InputStream istream = clientSocket.getInputStream();
 				//byte[] msg = new byte[256];
 
-				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
-				BufferedReader in = new BufferedReader(isr);
-				String line = "";
-				boolean end = false;
-				while(!end){
+				// InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
+				// BufferedReader in = new BufferedReader(isr);
+				// String line = "";
 
-							 //char []character =  new char[1];
-								String command = "";
-								String usr = "";
-								String id = "";
-								String msg = "";
-								char character;
-								// while( (character = (char) (in.read()) ) != '\0' ){
-								// 	System.out.println(character);
-								// 	command += character;
-								// }
+				while(true){
 
-								int x;
-								// while(  x != (int)('\0') ){
-								// 		//System.out.println("WEKoooo " + x);
-								// 		command += (char)(x);
-								// 		x = in.read();
-								// }
-								int count = 0;
-								while(  true ){
-										//System.out.println("WEKoooo " + x);
-										x= in.read();
-										if(count == 4){
-											break;
-										}else if( x == 0){
-											count++;
-											continue;
-										}else if(x == (int)('\0')){
-											count++;
-											continue;
-										}else{
-											switch(count){
-												case 0:
-													command += (char)(x);
-													break;
-													case 1:
-													usr += (char)(x);
-													break;
-													case 2:
-													id += (char)(x);
-													break;
-													case 3:
-													msg += (char)(x);
-													break;
-											}
+					if( read(istream).equals("SEND_MESSAGE")) {
 
-										}
+													String usr =  read(istream);
+													String id =  read(istream);
+													String msg =  read(istream);
 
-
-										// command += (char)(x);
-										// x = in.read();
-								}
+													System.out.println("MESSAGE " + id + " FROM " + usr +
+																																":\n" + msg + "\nEND\n");
+					}else{} //ASK
+				// 			 //char []character =  new char[1];
+				// 				String command = "";
+				// 				String usr = "";
+				// 				String id = "";
+				// 				String msg = "";
+				// 				char character;
+				// 				// while( (character = (char) (in.read()) ) != '\0' ){
+				// 				// 	System.out.println(character);
+				// 				// 	command += character;
+				// 				// }
+				//
+				// 				int x = 0;
+				// 				// while(  x != (int)('\0') ){
+				// 				// 		//System.out.println("WEKoooo " + x);
+				// 				// 		command += (char)(x);
+				// 				// 		x = in.read();
+				// 				// }
+				// 				int count = 0;
+				// 				while(  x!=-1 ){
+				// 						System.out.println("WEKoooo " + x);
+				// 						x= in.read();
+				// 						if(count == 4){
+				// 							break;
+				// 						}else if( x == 0){
+				// 							count++;
+				// 							continue;
+				// 						}else if(x == (int)('\0')){
+				// 							System.out.println("char 0 found");
+				// 							count++;
+				// 							continue;
+				// 						}else{
+				// 							switch(count){
+				// 								case 0:
+				// 									command += (char)(x);
+				// 									break;
+				// 									case 1:
+				// 									usr += (char)(x);
+				// 									break;
+				// 									case 2:
+				// 									id += (char)(x);
+				// 									break;
+				// 									case 3:
+				// 									msg += (char)(x);
+				// 									break;
+				// 							}
+				//
+				// 						}
+				//
+				//
+				// 						// command += (char)(x);
+				// 						// x = in.read();
+				// 				}
 
 
 								// System.out.println(command);
 								// System.out.println(usr);
 								// System.out.println(count);
-								System.out.println("c> MESSAGE " + id + " FROM " + usr +
-																											":\n" + msg + "\nEND\n");
+								// System.out.println("MESSAGE " + id + " FROM " + usr +
+								// 																			":\n" + msg + "\nEND\n");
 
 								/*while ((line = in.readLine()) != null) {
 					    //System.out.println(line);
@@ -617,6 +638,7 @@ class receiveThread extends Thread{
 										String usr = in.readLine();
 										String id = in.readLine();
 										String msg = in.readLine();
+	ServerSocket serverSc;
 
 
 										System.out.println("c> MESSAGE " + id + " FROM " + usr +
