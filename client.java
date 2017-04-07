@@ -512,17 +512,22 @@ class receiveThread extends Thread{
 		this.port = port;
 		this.serverSc = serverSc;
 	}
-	private String read(InputStream in){
-		String ret = "";
-		int b;
-		try{
-			while((b = in.read()) > 0) ret += (char)b;
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-		System.out.println("Message received: "  + ret);
-		return ret;
-	}
+
+
+	// private String read(InputStream in){
+	// 	String ret = "";
+	// 	int b;
+	// 	try{
+	// 		while((b = in.read()) > 0) ret += (char)b;
+	// 	}catch(Exception e){
+	// 		e.printStackTrace();
+	// 	}
+	// 	System.out.println("Message received: "  + ret);
+	// 	return ret;
+	// }
+
+
+
 		public void run(){
 			// try {
    //         while (true) {
@@ -555,80 +560,90 @@ class receiveThread extends Thread{
 				InputStream istream = clientSocket.getInputStream();
 				//byte[] msg = new byte[256];
 
-				// InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
-				// BufferedReader in = new BufferedReader(isr);
-				// String line = "";
+				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
+				BufferedReader in = new BufferedReader(isr);
+				String line = "";
+				boolean end = false;
+				while(!end){
 
-				while(true){
+					// if( read(istream).equals("SEND_MESSAGE")) {
+					//
+					// 								String usr =  read(istream);
+					// 								String id =  read(istream);
+					// 								String msg =  read(istream);
+					//
+					// 								System.out.println("MESSAGE " + id + " FROM " + usr +
+					// 																											":\n" + msg + "\nEND\n");
+					// }else{} //ASK
 
-					if( read(istream).equals("SEND_MESSAGE")) {
 
-													String usr =  read(istream);
-													String id =  read(istream);
-													String msg =  read(istream);
-
-													System.out.println("MESSAGE " + id + " FROM " + usr +
-																																":\n" + msg + "\nEND\n");
-					}else{} //ASK
 				// 			 //char []character =  new char[1];
-				// 				String command = "";
-				// 				String usr = "";
-				// 				String id = "";
-				// 				String msg = "";
-				// 				char character;
-				// 				// while( (character = (char) (in.read()) ) != '\0' ){
-				// 				// 	System.out.println(character);
-				// 				// 	command += character;
-				// 				// }
-				//
-				// 				int x = 0;
-				// 				// while(  x != (int)('\0') ){
-				// 				// 		//System.out.println("WEKoooo " + x);
-				// 				// 		command += (char)(x);
-				// 				// 		x = in.read();
-				// 				// }
-				// 				int count = 0;
-				// 				while(  x!=-1 ){
-				// 						System.out.println("WEKoooo " + x);
-				// 						x= in.read();
-				// 						if(count == 4){
-				// 							break;
-				// 						}else if( x == 0){
-				// 							count++;
-				// 							continue;
-				// 						}else if(x == (int)('\0')){
-				// 							System.out.println("char 0 found");
-				// 							count++;
-				// 							continue;
-				// 						}else{
-				// 							switch(count){
-				// 								case 0:
-				// 									command += (char)(x);
-				// 									break;
-				// 									case 1:
-				// 									usr += (char)(x);
-				// 									break;
-				// 									case 2:
-				// 									id += (char)(x);
-				// 									break;
-				// 									case 3:
-				// 									msg += (char)(x);
-				// 									break;
-				// 							}
-				//
-				// 						}
-				//
-				//
-				// 						// command += (char)(x);
-				// 						// x = in.read();
-				// 				}
+								String command = "";
+								String usr = "";
+								String id = "";
+								String msg = "";
+								char character;
+								// while( (character = (char) (in.read()) ) != '\0' ){
+								// 	System.out.println(character);
+								// 	command += character;
+								// }
+
+								int x = 0;
+								// while(  x != (int)('\0') ){
+								// 		//System.out.println("WEKoooo " + x);
+								// 		command += (char)(x);
+								// 		x = in.read();
+								// }
+
+
+								int count = 0;
+								while( true){
+
+										x= in.read();
+
+									//System.out.println("read: " + (char)(x));
+
+
+										if(count == 4){
+											count  = 0;
+											break;
+										}else if( x == 0){
+											//System.out.println("char 0 found");
+											count++;
+											continue;
+										}else if(x == (int)('\0')){
+											//System.out.println("char 0 found");
+											count++;
+											continue;
+										}else{
+											switch(count){
+												case 0:
+												 command += (char)(x);
+													break;
+													case 1:
+													usr += (char)(x);
+													break;
+													case 2:
+													id += (char)(x);
+													break;
+													case 3:
+													msg += (char)(x);
+													break;
+											}
+
+										}
+
+
+										// command += (char)(x);
+										// x = in.read();
+								}// while
 
 
 								// System.out.println(command);
 								// System.out.println(usr);
 								// System.out.println(count);
-								// System.out.println("MESSAGE " + id + " FROM " + usr +
-								// 																			":\n" + msg + "\nEND\n");
+								 System.out.println("MESSAGE " + id + " FROM " + usr +
+								 																			":\n" + msg + "\nEND\n");
 
 								/*while ((line = in.readLine()) != null) {
 					    //System.out.println(line);

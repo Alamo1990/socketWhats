@@ -72,6 +72,7 @@ void* dequeue( struct queue* s )
         free(h);
         s->head = p;
         if( NULL == s->head ) s->tail = s->head;  /* The element tail was pointing to is free(), so we need an update */
+        printf("IM the QUEUE, Mensaje name:%s \n", ((struct messages *)(ret))->sender );
         return ret;
 }
 
@@ -217,5 +218,79 @@ void* queue_find(struct queue* s, char * username )
                   return NULL;
           //else return ((struct userInformation*)(aux->next->data))->username;
 
+        }
+
+}
+
+int queue_remove(struct queue* s, char * username ){
+         struct userInformation* user;
+
+         if( NULL == s )
+         {
+                 //printf("List is empty\n");
+                 return 0;
+         }
+         else
+         if( NULL == s->head && NULL == s->tail )
+         {
+                 //printf("List is empty\n");
+                 return 0;
+         }
+         else if( NULL == s->head || NULL == s->tail )
+         {
+                 printf("There is something seriously wrong with your list\n");
+                 printf("One of the head/tail is empty while other is not \n");
+                 return 0;
+         }
+         user = (struct userInformation*) s->head->data;
+         if (!strcmp(user->username,username)) {
+
+                 if (s->head == s->tail) {
+
+                         free(user->pending_messages);
+                         free(s->head->data);
+                         free(s->head);
+                         s->head = s->tail = NULL;
+                 }else{
+                   free(user->pending_messages);
+                   free(s->head->data);
+                   free(s->head);
+                   s->head = s->head->next;
+                 }
+
+                 return 1;
+         }
+         else {
+           struct my_struct* aux;
+           struct userInformation * temp;
+ //          for ( aux = s->head; aux->next && !strcmp(((struct userInformation*)(aux->next->data))->username, username); aux = aux->next) ;
+           for ( aux = s->head; aux->next != NULL; aux = aux->next){
+             if(!strcmp(((struct userInformation*)(aux->next->data))->username, username)){
+
+              if (aux->next == s->tail) {
+
+                      free(((struct userInformation*)(aux->next->data))->pending_messages);
+                      free(aux->next->data);
+                      s->tail = aux;
+
+              }
+              // else if (aux->next->next == NULL ){ // last element contains the searched data{
+              //
+              //  free(((struct userInformation*)(aux->next->data))->pending_messages);
+              //  free(aux->next->data);
+              //  s->tail = aux;
+              //}
+             else{
+               free(((struct userInformation*)(aux->next->data))->pending_messages);
+               free(aux->next->data);
+               aux->next = aux->next->next;
+
+              }
+
+              return 1;
+             }
+           }
+           //if (aux->next == NULL)
+           return 0;
         }
 }

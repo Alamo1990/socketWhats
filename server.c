@@ -79,20 +79,45 @@ void clientSentMessages(struct userInformation* user, int clientPort){
   server_addr.sin_port = htons(clientPort);
 
     char *command = "SEND_MESSAGE\0";
-    char *usr = "Pepe\0";
-    char *id = "312321\0";
-    char *msg = "HOLA LOCO\0";
-    char *endMsg = '\0';
+    // char *usr = "Pepe\0";
+    // char *id = "312321\0";
+    // char *msg = "HOLA LOCO\0";
+    // char *endMsg = '\0';
     connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
 
+
+    int count = 0;
     while( !queue_empty(user->pending_messages) ){
+     count++;
+     printf("mensajes send: %d\n", count );
+
      struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
      send(sd, command, strlen(command)+1, 0);
-     send(sd, nextMsg->sender, strlen(command)+1, 0);
-     send(sd, (char *)&nextMsg->message_id, sizeof(unsigned int)+1, 0);
-     send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0);
+     send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0);
+
+               // char buf[6];
+               // sprintf (buf, "%u\0", nextMsg->message_id);
+               // char *str = (char *) (intptr_t) nextMsg->message_id;
+               // send(sd, str, 256, 0);
+
+     // send message id
+     unsigned int msg_id = nextMsg->message_id;
+     double x = (double)(msg_id);
+     int n = log10(x) + 1;
+     char response[n];
+     sprintf(response, "%u\0", msg_id);
+     printf("Response ID: %s\n", response);
+     send(sd, &response, n+1, 0 );
+
+     //send(sd, (char *)&nextMsg->message_id, sizeof(unsigned int)+1, 0);
+
+     char msgg[256];
+     sprintf(msgg, "%s\0", nextMsg->message);
+     send(sd, msgg, strlen(msgg)+1, 0);
+     //send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0);
 
      printf("s> MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+     printf("CONTENT> %s\n", nextMsg->message );
      //send(sd, endMsg, strlen(endMsg)+1, 0);
     }
 
@@ -118,7 +143,11 @@ void clientSentMessages(struct userInformation* user, int clientPort){
     // send(sd, usr, strlen(usr)+1, 0);
     // send(sd, id, strlen(id)+1, 0);
     // send(sd, msg, strlen(msg)+1, 0);
-
+    // sleep(2);
+    // send(sd, command, strlen(command)+1, 0);
+    // send(sd, usr, strlen(usr)+1, 0);
+    // send(sd, id, strlen(id)+1, 0);
+    // send(sd, msg, strlen(msg)+1, 0);
 
     close(sd);
 }
@@ -194,7 +223,7 @@ void unregisterUser(struct argumentWrapper *args){
 
   free(args->username);
 
-  if(queue_find_remove(queueUsers, username)){
+  if(queue_remove(queueUsers, username)){
     clientResponse(0, clientAddr, sc); // success
     printf("s> UNREGISTER %s OK\n", username );
   }else{
@@ -236,10 +265,10 @@ void  connectUser(struct argumentWrapper *args){
         printf("s> CONNECT %s OK\n", username );
 
 
-       //if( !queue_empty(user->pending_messages)){
+       if( !queue_empty(user->pending_messages)){
          //clientSentMessages(user,clientAddr, port);
-        //  clientSentMessages(user,port);
-       //}
+         clientSentMessages(user,port);
+       }
 
       }
   }else{
@@ -345,8 +374,10 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
     // fill fields and update message id
     strcpy(message->message, msg);
-    message->sender = usernameS;
-    message->receiver = usernameD;
+    strcpy(message->sender, usernameS);
+    strcpy(message->receiver, usernameD);
+    // message->sender = usernameS;
+    // message->receiver = usernameD;
     message->message_id = user->last_message_id + 1;
     user->last_message_id++;
 
@@ -368,27 +399,30 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
   if(user->status == CONNECTED){//Send message straight away FIXME must also dequeue
     printf("User %s connected\n", user->username);
-    int clientSocket;
-    struct sockaddr_in client_addr;
-    struct hostent *clientHP;
+    // int clientSocket;
+    // struct sockaddr_in client_addr;
+    // struct hostent *clientHP;
+    //
+    // clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // bzero((char*)&client_addr, sizeof(client_addr));
+    //
+    // memcpy(&(client_addr.sin_addr), &(user->user_addr), sizeof(user->user_addr));
+    // client_addr.sin_family = AF_INET;
+    // client_addr.sin_port = htons(user->user_port);
+    // printf("Client RECEIVE IS AT: %s:%d\n", inet_ntoa(client_addr.sin_addr), user->user_port);
+    // connect(clientSocket, (struct sockaddr *)&client_addr, sizeof(client_addr));
+    //
+    // struct messages* message= dequeue(user->pending_messages);
+    // char * idString = (char*)malloc(32*sizeof(char));
+    // sprintf(idString, "%d\0", message->message_id);
+    // printf("Sending %s(%s) to %s\n", message->message, idString, message->sender);
+    // send(clientSocket, "SEND_MESSAGE\0", 16, 0);
+    // send(clientSocket, message->sender, 256, 0);
+    // send(clientSocket, idString, 32, 0);
+    // send(clientSocket, message->message, 256, 0);
 
-    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    bzero((char*)&client_addr, sizeof(client_addr));
 
-    memcpy(&(client_addr.sin_addr), &(user->user_addr), sizeof(user->user_addr));
-    client_addr.sin_family = AF_INET;
-    client_addr.sin_port = htons(user->user_port);
-    printf("Client RECEIVE IS AT: %s:%d\n", inet_ntoa(client_addr.sin_addr), user->user_port);
-    connect(clientSocket, (struct sockaddr *)&client_addr, sizeof(client_addr));
-
-    struct messages* message= dequeue(user->pending_messages);
-    char * idString = (char*)malloc(32*sizeof(char));
-    sprintf(idString, "%d\0", message->message_id);
-    printf("Sending %s(%s) to %s\n", message->message, idString, message->sender);
-    send(clientSocket, "SEND_MESSAGE\0", 16, 0);
-    send(clientSocket, message->sender, 256, 0);
-    send(clientSocket, idString, 32, 0);
-    send(clientSocket, message->message, 256, 0);
+    clientSentMessages(user,user->user_port);
   }
  }else{
   clientResponse(1, clientAddr, sc);
