@@ -13,9 +13,9 @@ class client {
  * @brief Return codes for the protocol methods
  */
 private static enum RC {
-								OK,
-								ERROR,
-								USER_ERROR
+	OK,
+	ERROR,
+	USER_ERROR
 };
 
 /******************* ATTRIBUTES *******************/
@@ -23,9 +23,8 @@ private static enum RC {
 private static String _server   = null;
 private static int _port = -1;
 private static String currUser = null;
-private static Thread listener;
+private static receiveThread listener;
 private static Socket receiveSc; //ASK
-
 
 /********************* METHODS ********************/
 
@@ -43,15 +42,10 @@ static RC register(String user){
 	try {
 		Socket sc = new Socket(_server, _port);
 		OutputStream ostream = sc.getOutputStream();
-		//ObjectOutput s = new ObjectOutputStream(ostream);
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-
-		/*MIRAR EL PRINT WRITTER*/
-		// All strings must end with \0
-		//s.writeObject("REGISTER");
-		//s.writeObject(user);
+		// Send command to server
 		s.writeBytes("REGISTER\0");
 		s.writeBytes(user);
 		s.writeByte('\0');
@@ -59,7 +53,7 @@ static RC register(String user){
 		s.flush();
 
 		byte[] msg = new byte[1];
-		//res = istream.readChar();
+		// Read response from server
 		int bytesRead = istream.read(msg);
 		res = msg[0];
 		sc.close();
@@ -70,13 +64,13 @@ static RC register(String user){
 
 	switch(res) {
 		case 0:
-		System.out.println("REGISTER OK");
+		System.out.println("c> REGISTER OK");
 		return RC.OK;
 		case 1:
-		System.out.println("REGISTER IN USE");
+		System.out.println("c> REGISTER IN USE");
 		return RC.USER_ERROR;
 		case 2:
-		System.out.println("REGISTER FAIL");
+		System.out.println("c> REGISTER FAIL");
 		return RC.ERROR;
 		default:
 		return RC.ERROR;
@@ -98,6 +92,7 @@ static RC unregister(String user){
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
+		// Send command to server
 		s.writeBytes("UNREGISTER\0");
 		s.writeBytes(user);
 		s.writeByte('\0');
@@ -105,7 +100,7 @@ static RC unregister(String user){
 		s.flush();
 
 		byte[] msg = new byte[1];
-		//res = istream.readChar();
+		// Read response from server
 		int bytesRead = istream.read(msg);
 		res = msg[0];
 		sc.close();
@@ -116,12 +111,12 @@ static RC unregister(String user){
 	}
 	switch (res) {
 		case 0:
-		System.out.println("UNREGISTER OK");
+		System.out.println("c> UNREGISTER OK");
 		return RC.OK;
 		case 1:
-		System.out.println("USER DOES NOT EXIST");
+		System.out.println("c> USER DOES NOT EXIST");
 		return RC.USER_ERROR;
-		case 2: System.out.println("UNREGISTER FAIL");
+		case 2: System.out.println("c> UNREGISTER FAIL");
 		return RC.ERROR;
 		default:
 		return RC.ERROR;
@@ -149,42 +144,13 @@ static RC connect(String user){
 		DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 		DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-		// ServerSocket serverSc = new ServerSocket(0);
-		// int port = serverSc.getLocalPort();
 		 serverSc = new ServerSocket(0);
 		 port = serverSc.getLocalPort();
 
-		/*listener = new Thread(){
-			@Override
-			public void run(){
-				System.out.println("Waiting for server");
+		// Update user of the client
+		currUser = user;
 
-											try{
-																			Socket recSc = serverSc.accept();
-																			DataInputStream istrem = new DataInputStream(recSc.getInputStream());
-
-																			while(true) {
-																											if((istrem.readLine()).equals("SEND_MESSAGE")) {
-																																			System.out.println("Message received");
-																																			String usr = istrem.readLine();
-																																			String id = istrem.readLine();
-																																			String msg = istrem.readLine();
-
-																																			System.out.println("MESSAGE " + id + " FROM " + usr +
-																																																						":\n" + msg + "\nEND\n");
-																											}else{} //ASK
-																			}
-
-											}catch( Exception e) {
-																			e.printStackTrace();
-																			return;
-											}
-
-			}
-		};
-*/
-		currUser = user; // set the current user name
-
+		// Send command to server
 		s.writeBytes("CONNECT\0");
 		s.writeBytes(user);
 		s.writeBytes("\0");
@@ -192,8 +158,9 @@ static RC connect(String user){
 		s.writeBytes("\0");
 
 		s.flush();
-
+		// Read server response
 		byte[] msg = new byte[1];
+
 		int bytesRead = istream.read(msg);
 		res = msg[0];
 		sc.close();
@@ -203,20 +170,20 @@ static RC connect(String user){
 	}
 	switch (res) {
 	case 0:
-									System.out.println("CONNECT OK");
-									//listener.start();
-									new receiveThread(port,serverSc).start();
+									System.out.println("c> CONNECT OK");
+									listener = new receiveThread(port,serverSc);
+									listener.start();
 									return RC.OK;
 	case 1:
-									System.out.println("CONNECT FAIL, USER DOES NOT EXIST");
+									System.out.println("c> CONNECT FAIL, USER DOES NOT EXIST");
 									// serverSc.close();
 									return RC.USER_ERROR;
 	case 2:
-									System.out.println("USER ALREADY CONNECTED");
+									System.out.println("c> USER ALREADY CONNECTED");
 									// serverSc.close();
 									return RC.ERROR;
 	case 3:
-									System.out.println("CONNECT FAIL");
+									System.out.println("c> CONNECT FAIL");
 									// serverSc.close();
 									return RC.ERROR;
 	default:
@@ -235,34 +202,21 @@ static RC connect(String user){
 static RC disconnect(String user){
 								int res = -1;
 								try{
-																// Socket sc = new Socket(_server, _port);
-																// DataOutputStream s = new DataOutputStream(sc.getOutputStream());
-																// DataInputStream istream = new DataInputStream(sc.getInputStream());
-																//
-																// s.writeBytes("DISCONNECT\0");
-																// s.writeBytes(user);
-																// s.writeBytes("\0");
-																//
-																// s.flush();
-																//
-																// res = istream.readChar();
-																//
-																// sc.close();
-																//
+
 							//listener.stop(); //REVIEW
-																// receiveSc.close();
+
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
 																currUser = null;
-
+																// Send command to server
 																s.writeBytes("DISCONNECT\0");
 																s.writeBytes(user);
 																s.writeByte('\0');
 
 																s.flush();
-
+																// Receive server response
 																byte[] msg = new byte[1];
 																int bytesRead = istream.read(msg);
 																res = msg[0];
@@ -274,14 +228,15 @@ static RC disconnect(String user){
 								}
 								switch (res) {
 								case 0:
-																System.out.println("DISCONNECT OK");
+																System.out.println("c> DISCONNECT OK");
+																listener.stop();
 																return RC.OK;
 								case 1:
-																System.out.println("DISCONNECT FAIL / USER DOES NOT EXIST");
+																System.out.println("c> DISCONNECT FAIL / USER DOES NOT EXIST");
 																return RC.USER_ERROR;
-								case 2: System.out.println("DISCONNECT FAIL / USER NOT CONNECTED");
+								case 2: System.out.println("c> DISCONNECT FAIL / USER NOT CONNECTED");
 																return RC.USER_ERROR;
-								case 3: System.out.println("DISCONNECT FAIL");
+								case 3: System.out.println("c> DISCONNECT FAIL");
 																return RC.ERROR;
 								default:
 																return RC.ERROR;
@@ -307,11 +262,11 @@ static RC send(String user, String message){
 								}
 
 								try {
-																// CHECK MESSAGE LENGTH ?
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
+																// Send command to server
 																s.writeBytes("SEND\0");
 																s.writeBytes(currUser);
 																s.writeByte('\0');
@@ -321,7 +276,7 @@ static RC send(String user, String message){
 																s.writeByte('\0');
 
 																s.flush();
-
+																// Receive response from server
 																byte[] msg = new byte[1];
 																byte[] msg_id = new byte[8];
 																int bytesRead = istream.read(msg);
@@ -332,8 +287,6 @@ static RC send(String user, String message){
 
 																switch(res) {
 																case 0:
-
-
 																								System.out.println("SEND OK - MESSAGE "+ new String(msg_id));
 																								return RC.OK;
 																case 1:
@@ -436,6 +389,7 @@ static void shell()
 																								e.printStackTrace();
 																}
 								}
+								System.exit(0);
 }
 
 /**
@@ -491,168 +445,100 @@ static boolean parseArguments(String [] argv)
 
 /********************* MAIN **********************/
 
-public static void main(String[] argv){
-								if(!parseArguments(argv)) {
-																usage();
-																return;
-								}
+	public static void main(String[] argv){
+		if(!parseArguments(argv)) {
+			usage();
+			return;
+		}
 
-								// Write code here
-
-								shell();
-								System.out.println("+++ FINISHED +++");
-}
-}
-
-
-class receiveThread extends Thread{
-	int port;
-	ServerSocket serverSc;
-	public receiveThread(int port, ServerSocket serverSc){
-		this.port = port;
-		this.serverSc = serverSc;
+		// Write code here
+		shell();
+		System.out.println("+++ FINISHED +++");
 	}
+}
 
+// Thread listening for messages
+class receiveThread extends Thread{
+	 int port;
+	 ServerSocket serverSc;
 
-	// private String read(InputStream in){
-	// 	String ret = "";
-	// 	int b;
-	// 	try{
-	// 		while((b = in.read()) > 0) ret += (char)b;
-	// 	}catch(Exception e){
-	// 		e.printStackTrace();
-	// 	}
-	// 	System.out.println("Message received: "  + ret);
-	// 	return ret;
-	// }
-
+	 public receiveThread(int port, ServerSocket serverSc){
+		 this.port = port;
+		 this.serverSc = serverSc;
+	 }
 
 
 		public void run(){
-			// try {
-   //         while (true) {
-   //             Socket socket = serverSc.accept();
-   //             try {
-   //                 PrintWriter out =
-   //                     new PrintWriter(socket.getOutputStream(), true);
-   //                 out.println(new Date().toString());
-   //             } finally {
-   //                 socket.close();
-   //             }
-   //         }
-   //     }catch( Exception e) {
-			// 						try{
-   //         serverSc.close();
-			// 							}catch( Exception ee) {
-			// 								ee.printStackTrace();
-			// 							}
-   //     }
-
-
-
 			try{
-					while(true){
-				System.out.println("HELLO IM A THREAD with port " + this.port);
-				//ServerSocket sc = new ServerSocket(port);
+				while(true){
+
 				Socket clientSocket = this.serverSc.accept();
 				System.out.println("Connection received from " + clientSocket.getInetAddress().getHostName());
 
 				DataOutputStream s = new DataOutputStream(clientSocket.getOutputStream());
 				InputStream istream = clientSocket.getInputStream();
-				//byte[] msg = new byte[256];
 
 				InputStreamReader isr = new InputStreamReader(clientSocket.getInputStream());
 				BufferedReader in = new BufferedReader(isr);
 				String line = "";
 				boolean end = false;
 
+				String command = "";
+				String usr = "";
+				String id = "";
+				String msg = "";
+				char character;
 
-					// if( read(istream).equals("SEND_MESSAGE")) {
-					//
-					// 								String usr =  read(istream);
-					// 								String id =  read(istream);
-					// 								String msg =  read(istream);
-					//
-					// 								System.out.println("MESSAGE " + id + " FROM " + usr +
-					// 																											":\n" + msg + "\nEND\n");
-					// }else{} //ASK
+				int x = 0;
+				// Count number of messages received
+				int count = 0;
+				// If socket has data to be read
+				if(in.ready()){
+					// Read 4 messages
+					while(count < 4){
+						// Read one byte
+						x= in.read();
+						if(count == 4){
+							break;
+						}else if( x == 0){
+							count++; // If null character readed one word has been sent
+							continue;
+						}else if(x == (int)('\0')){
+							count++; // If null character readed one word has been sent
+							continue;
+						}else{
+							switch(count){
+								case 0:
+								 command += (char)(x); // Read command
+									break;
+									case 1:
+									usr += (char)(x); // Read username
+									break;
+									case 2:
+									id += (char)(x); // Read id
+									break;
+									case 3:
+									msg += (char)(x); // Read message
+									break;
+							}
+						}
+					}//while if count < 4
 
+					// Check if message received is a normal message
+					if(command.equals("SEND_MESSAGE")){
+						System.out.println("c> MESSAGE " + id + " FROM " + usr +
+					 																			":\n" + msg + "\nEND\n");
+					}else{
+						// An ACK message is received
+						System.out.println("c> SEND MESSAGE " + id + " OK\n");
+					}
 
-				// 			 //char []character =  new char[1];
-								String command = "";
-								String usr = "";
-								String id = "";
-								String msg = "";
-								char character;
-								// while( (character = (char) (in.read()) ) != '\0' ){
-								// 	System.out.println(character);
-								// 	command += character;
-								// }
-
-								int x = 0;
-
-
-								int count = 0;
-								//while( true){
-								if(in.ready()){
-										System.out.println("REAdy");
-
-									while(count < 4){
-										x= in.read();
-
-										if(count == 4){
-											//count  = 0;
-											break;
-										}else if( x == 0){
-											//System.out.println("char 0 found");
-											count++;
-											continue;
-										}else if(x == (int)('\0')){
-											//System.out.println("char 0 found");
-											count++;
-											continue;
-										}else{
-											switch(count){
-												case 0:
-												 command += (char)(x);
-													break;
-													case 1:
-													usr += (char)(x);
-													break;
-													case 2:
-													id += (char)(x);
-													break;
-													case 3:
-													msg += (char)(x);
-													break;
-											}
-
-										}
-
-									}//while if count < 4
-
-									if(command.equals("SEND_MESSAGE")){
-										System.out.println("c> MESSAGE " + id + " FROM " + usr +
-									 																			":\n" + msg + "\nEND\n");
-									}else{
-										System.out.println("c> SEND MESSAGE " + id + " OK\n");
-									}
-
-
-								}// if ready
-
-								clientSocket.close();
-
+			 }// if ready
+					// Close client socket
+					clientSocket.close();
 				}// while(true)
-
-
 			}catch( Exception e) {
-												e.printStackTrace();
-				}
-
+				e.printStackTrace();
+			}
 		}
-
-
-
-
 }
