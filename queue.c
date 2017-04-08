@@ -72,7 +72,7 @@ void* dequeue( struct queue* s )
         free(h);
         s->head = p;
         if( NULL == s->head ) s->tail = s->head;  /* The element tail was pointing to is free(), so we need an update */
-        printf("IM the QUEUE, Mensaje name:%s \n", ((struct messages *)(ret))->sender );
+        //printf("IM the QUEUE, Mensaje name:%s \n", ((struct messages *)(ret))->sender );
         return ret;
 }
 
@@ -181,7 +181,7 @@ void queue_print_element(struct my_struct* p )
  */
 void* queue_find(struct queue* s, char * username )
 {
-   printf("USERNAME GIVEN TO SEARCH %s\n",username );
+        //printf("USERNAME GIVEN TO SEARCH %s\n",username );
         struct userInformation* user;
 
         if( NULL == s )

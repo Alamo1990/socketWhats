@@ -65,7 +65,7 @@ void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
 //void clientSentMessages(struct userInformation* user,struct sockaddr_in clientAddr, int clientPort){
 void clientSentMessages(struct userInformation* user, int clientPort){
 
- int sd;
+  int sd;
   struct sockaddr_in server_addr;
   struct hostent *hp;
   sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -83,22 +83,29 @@ void clientSentMessages(struct userInformation* user, int clientPort){
     // char *id = "312321\0";
     // char *msg = "HOLA LOCO\0";
     // char *endMsg = '\0';
-    connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
+     perror("RECEIVER not reachable: ");
+     user->status = OFF;
+     close(sd);
+     return;
+    }
 
 
-    int count = 0;
     while( !queue_empty(user->pending_messages) ){
-     count++;
-     printf("mensajes send: %d\n", count );
 
      struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
-     send(sd, command, strlen(command)+1, 0);
-     send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0);
 
-               // char buf[6];
-               // sprintf (buf, "%u\0", nextMsg->message_id);
-               // char *str = (char *) (intptr_t) nextMsg->message_id;
-               // send(sd, str, 256, 0);
+     if( send(sd, command, strlen(command)+1, 0) == -1){
+      // Error sending, enqueue in pending list
+      enqueue(user->pending_messages, (void *)nextMsg);
+      return;
+     }
+
+     if( send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0) == -1 ){
+      // Error sending, enqueue in pending list
+      enqueue(user->pending_messages, (void *)nextMsg);
+      return;
+     }
 
      // send message id
      unsigned int msg_id = nextMsg->message_id;
@@ -107,18 +114,55 @@ void clientSentMessages(struct userInformation* user, int clientPort){
      char response[n];
      sprintf(response, "%u\0", msg_id);
      printf("Response ID: %s\n", response);
-     send(sd, &response, n+1, 0 );
+     if( send(sd, &response, n+1, 0 ) == -1 ){
+      // Error sending, enqueue in pending list
+      enqueue(user->pending_messages, (void *)nextMsg);
+      return;
+     }
 
      //send(sd, (char *)&nextMsg->message_id, sizeof(unsigned int)+1, 0);
 
      char msgg[256];
      sprintf(msgg, "%s\0", nextMsg->message);
-     send(sd, msgg, strlen(msgg)+1, 0);
-     //send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0);
+     if( send(sd, msgg, strlen(msgg)+1, 0) == -1 ){
+      // Error sending, enqueue in pending list
+      enqueue(user->pending_messages, (void *)nextMsg);
+      return;
+     }
 
-     printf("s> MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
-     printf("CONTENT> %s\n", nextMsg->message );
+
+     printf("s> SEND MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+     //printf("CONTENT> %s\n", nextMsg->message );
      //send(sd, endMsg, strlen(endMsg)+1, 0);
+////////////////////////////////////////////////////////
+     // ACK message to sender
+     // struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
+     // if(usr != NULL){
+     //
+     //   int ss;
+     //   struct sockaddr_in server_addr_sender;
+     //   struct hostent *hp_sender;
+     //   ss = socket(AF_INET, SOCK_STREAM, 0);
+     //   bzero( (char *)&server_addr_sender, sizeof(server_addr_sender) );
+     //
+     //   hp_sender = gethostbyname( inet_ntoa( usr->user_addr) );
+     //
+     //   memcpy( &(server_addr_sender.sin_addr), hp_sender->h_addr, hp_sender->h_length);
+     //   server_addr_sender.sin_family = AF_INET;
+     //   server_addr_sender.sin_port = htons(usr->user_port);
+     //   printf("ACK TEST\n" );
+     //  if( connect(ss, (struct sockaddr *) &server_addr_sender, sizeof(server_addr_sender)) == -1){
+     //   perror("RECEIVER not reachable: ");
+     //   usr->status = OFF;
+     //   close(ss);
+     //  }else{
+     //   char *ack_msg = "SEND_MESS_ACK\0";
+     //   send(ss, ack_msg, strlen(ack_msg)+1, 0);
+     //   close(ss);
+     //  }
+     // }
+//////////////////////////////////////////
+
     }
 
     //send(sd, (char *)&num, sizeof(int), 0);
@@ -423,6 +467,8 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
 
     clientSentMessages(user,user->user_port);
+  }else{
+   printf("s> MESSAGE: %u FROM %s TO %s STORED\n", msg_id, message->sender, message->receiver );
   }
  }else{
   clientResponse(1, clientAddr, sc);

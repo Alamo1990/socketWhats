@@ -590,12 +590,7 @@ class receiveThread extends Thread{
 								// }
 
 								int x = 0;
-								// while(  x != (int)('\0') ){
-								// 		//System.out.println("WEKoooo " + x);
-								// 		command += (char)(x);
-								// 		x = in.read();
-								// }
-
+			
 
 								int count = 0;
 								//while( true){
@@ -604,9 +599,6 @@ class receiveThread extends Thread{
 
 									while(count < 4){
 										x= in.read();
-
-									//System.out.println("read: " + (char)(x));
-
 
 										if(count == 4){
 											//count  = 0;
@@ -640,52 +632,14 @@ class receiveThread extends Thread{
 									}//while if count < 4
 
 
-										// command += (char)(x);
-										// x = in.read();
-										System.out.println("MESSAGE " + id + " FROM " + usr +
-									 																			":\n" + msg + "\nEND\n");
-								}// while
-
-
-								// System.out.println(command);
-								// System.out.println(usr);
-								// System.out.println(count);
-								 //System.out.println("MESSAGE " + id + " FROM " + usr + ":\n" + msg + "\nEND\n");
-
-								/*while ((line = in.readLine()) != null) {
-					    //System.out.println(line);
-					    //response = response + line + "\n";
-
-									if(line.equals("SEND_MESSAGE")){
-										String usr = in.readLine();
-										String id = in.readLine();
-										String msg = in.readLine();
-	ServerSocket serverSc;
-
-
 										System.out.println("c> MESSAGE " + id + " FROM " + usr +
-																													":\n" + msg + "\nEND\n");
-									}
-					    if (in.ready() == false) {
-					        break;
-					    }
-					}*/
-				//	System.out.println("c> MESSAGE " + id + " FROM " + usr +	":\n" + msg + "\nEND\n");
+									 																			":\n" + msg + "\nEND\n");
+								}// if ready
 
-				}
 
-				//
-				//
-				// //String msg;
-				// //res = istream.readChar();
-				// byte m = istream.readByte();
-				// int count = 0;
-				// while(m!='\0'){
-				// 	msg[0] = m;
-				// 	m = istream.readByte();
-				// }
-				// System.out.println("RESPONSE: " + msg);
-				// //sc.close();
+				}// while(true)
+
+
 			}catch( Exception e) {
 												e.printStackTrace();
 				}

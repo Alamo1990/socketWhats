@@ -20,4 +20,4 @@ server.o: server.c
 	$(CC) -c server.c
 
 clean:
-	rm *.o client server *.class
+	rm *.o server *.class
