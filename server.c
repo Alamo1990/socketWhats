@@ -63,7 +63,7 @@ void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
 }
 // NINJA
 //void clientSentMessages(struct userInformation* user,struct sockaddr_in clientAddr, int clientPort){
-void clientSentMessages(struct userInformation* user, int clientPort){
+void clientSentMessages(struct userInformation* user){
 
   int sd;
   struct sockaddr_in server_addr;
@@ -76,15 +76,11 @@ void clientSentMessages(struct userInformation* user, int clientPort){
 
   memcpy( &(server_addr.sin_addr), hp->h_addr, hp->h_length);
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(clientPort);
+  server_addr.sin_port = htons(user->user_port);
 
     char *command = "SEND_MESSAGE\0";
-    // char *usr = "Pepe\0";
-    // char *id = "312321\0";
-    // char *msg = "HOLA LOCO\0";
-    // char *endMsg = '\0';
+
     if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
-     perror("RECEIVER not reachable: ");
      user->status = OFF;
      close(sd);
      return;
@@ -94,6 +90,47 @@ void clientSentMessages(struct userInformation* user, int clientPort){
     while( !queue_empty(user->pending_messages) ){
 
      struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
+     printf("SENDING AN ACK&&&&\n");
+     if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
+      printf("SENDING AN ACK\n");
+
+      if( send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0) == -1){
+       printf("ERROR SENDING AN ACK\n");
+       // Error sending, enqueue in pending list
+       enqueue(user->pending_messages, (void *)nextMsg);
+       return;
+      }
+
+      char *empty = "\0";
+      if( send(sd, empty, 1, 0) == -1){
+       printf("ERROR SENDING EMPTY\n");
+       // Error sending, enqueue in pending list
+       enqueue(user->pending_messages, (void *)nextMsg);
+       return;
+      }
+
+      // send message id
+      unsigned int msg_id = nextMsg->message_id;
+      double x = (double)(msg_id);
+      int n = log10(x) + 1;
+      char response[n];
+      sprintf(response, "%u\0", msg_id);
+      if( send(sd, &response, n+1, 0 ) == -1 ){
+       // Error sending, enqueue in pending list
+       enqueue(user->pending_messages, (void *)nextMsg);
+       return;
+      }
+
+
+      if( send(sd, empty, 1, 0) == -1){
+       printf("ERROR SENDING EMPTY MSG\n");
+       // Error sending, enqueue in pending list
+       enqueue(user->pending_messages, (void *)nextMsg);
+       return;
+      }
+
+      continue;
+     }
 
      if( send(sd, command, strlen(command)+1, 0) == -1){
       // Error sending, enqueue in pending list
@@ -132,6 +169,19 @@ void clientSentMessages(struct userInformation* user, int clientPort){
 
 
      printf("s> SEND MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+
+     // Ack
+     struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
+     if( usr != NULL){
+      printf("PREPARING ACK\n");
+       struct messages* ackMsg = (struct messages *) malloc(sizeof(struct messages));
+       bzero(ackMsg, sizeof(struct messages));
+       ackMsg->message_id = nextMsg->message_id;
+       strcpy(ackMsg->message, "SEND_MESS_ACK\0");
+       enqueue(usr->pending_messages, (void *) ackMsg);
+       clientSentMessages(usr);
+     }
+
      //printf("CONTENT> %s\n", nextMsg->message );
      //send(sd, endMsg, strlen(endMsg)+1, 0);
 ////////////////////////////////////////////////////////
@@ -311,7 +361,7 @@ void  connectUser(struct argumentWrapper *args){
 
        if( !queue_empty(user->pending_messages)){
          //clientSentMessages(user,clientAddr, port);
-         clientSentMessages(user,port);
+         clientSentMessages(user);
        }
 
       }
@@ -433,11 +483,11 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
     // send message id
     unsigned int msg_id = message->message_id;
-    printf("Message id: %d\n", msg_id);
+    printf("Message id: %u\n", msg_id);
     double x = (double)(msg_id);
     int n = log10(x) + 1;
     char response[n];
-    sprintf(response, "%d\0", msg_id);
+    sprintf(response, "%u\0", msg_id);
     printf("Response ID: %s\n", response);
     sendto(sc, &response, n, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
 
@@ -466,7 +516,7 @@ if( queue_find(queueUsers, usernameS) == NULL ){
     // send(clientSocket, message->message, 256, 0);
 
 
-    clientSentMessages(user,user->user_port);
+    clientSentMessages(user);
   }else{
    printf("s> MESSAGE: %u FROM %s TO %s STORED\n", msg_id, message->sender, message->receiver );
   }

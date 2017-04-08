@@ -590,7 +590,7 @@ class receiveThread extends Thread{
 								// }
 
 								int x = 0;
-			
+
 
 								int count = 0;
 								//while( true){
@@ -631,11 +631,17 @@ class receiveThread extends Thread{
 
 									}//while if count < 4
 
-
+									if(command.equals("SEND_MESSAGE")){
 										System.out.println("c> MESSAGE " + id + " FROM " + usr +
 									 																			":\n" + msg + "\nEND\n");
+									}else{
+										System.out.println("c> SEND MESSAGE " + id + " OK\n");
+									}
+
+
 								}// if ready
 
+								clientSocket.close();
 
 				}// while(true)
 
