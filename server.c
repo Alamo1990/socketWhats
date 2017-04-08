@@ -1,13 +1,13 @@
 #include "server.h"
 
-#define TRUE 1
-#define FALSE 0
+
 
 // mutex and condition variables for message copy
 pthread_mutex_t mutex_msg;
 int msg_not_copied = TRUE;
 pthread_cond_t cond_msg;
 
+// users queue
 struct queue *queueUsers;
 
 // server file descriptor
@@ -17,28 +17,28 @@ char *buffer;
 
 // Initialize synchronization elements
 void initializeSync(){
-        if( pthread_mutex_init(&mutex_msg, NULL) != 0) {
-                perror("Not possible to initialize mutex");
-                exit(0);
-        };
+  if( pthread_mutex_init(&mutex_msg, NULL) != 0) {
+   perror("Not possible to initialize mutex");
+   exit(0);
+  };
 
-        if( pthread_cond_init(&cond_msg, NULL) != 0) {
-                perror("Not possible to initialize condition variable");
-                exit(0);
-        }
+  if( pthread_cond_init(&cond_msg, NULL) != 0) {
+   perror("Not possible to initialize condition variable");
+   exit(0);
+  }
 }
 
 // destroy synchronization elements
 void destroySync(){
-        if( pthread_mutex_destroy(&mutex_msg) != 0) {
-                perror("Not possible to destroy mutex");
-                exit(0);
-        };
+  if( pthread_mutex_destroy(&mutex_msg) != 0) {
+   perror("Not possible to destroy mutex");
+   exit(0);
+  };
 
-        if( pthread_cond_destroy(&cond_msg) != 0) {
-                perror("Not possible to destroy condition variable");
-                exit(0);
-        }
+  if( pthread_cond_destroy(&cond_msg) != 0) {
+   perror("Not possible to destroy condition variable");
+   exit(0);
+  }
 }
 
 // retrieve CTRL+C signal
@@ -55,206 +55,163 @@ void signal_handler(int sig){
   exit(0);
 }
 
-
+/* Send the response to the client after receiving a request */
 void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
-  // Response to client
-  //sendto(sc, &response, 1, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
   send(sc, &response, 1, 0);
 }
-// NINJA
-//void clientSentMessages(struct userInformation* user,struct sockaddr_in clientAddr, int clientPort){
+
+/* Send all the pending messages to the given user */
+/*
+ * This function is used to send the pending messages to one user and
+ * also to send the ACK message to a sender user.
+ * Because the ACK interchange protocol is different respect the
+ * rest of messages, empty messages are sent to the user to
+ * display correctly the information, reusing the code as much as possible
+*/
 void clientSentMessages(struct userInformation* user){
 
+  // Prepare connection elements
   int sd;
   struct sockaddr_in server_addr;
   struct hostent *hp;
   sd = socket(AF_INET, SOCK_STREAM, 0);
   bzero( (char *)&server_addr, sizeof(server_addr) );
-
-  //hp = gethostbyname( inet_ntoa( ((struct sockaddr_in *)&clientAddr)->sin_addr) );
   hp = gethostbyname( inet_ntoa( user->user_addr) );
-
   memcpy( &(server_addr.sin_addr), hp->h_addr, hp->h_length);
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(user->user_port);
 
-    char *command = "SEND_MESSAGE\0";
+  // Default command to send message
+  char *command = "SEND_MESSAGE\0";
 
-    if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
-     user->status = OFF;
-     close(sd);
+  // Stablish connection
+  if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
+   // Error making connection, set user as disconnected
+   user->status = OFF;
+   close(sd);
+   return;
+  }
+
+  // Pending messages in the queue
+  while( !queue_empty(user->pending_messages) ){
+
+   // Get the first message from pending queue
+   struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
+
+   // Check if it is an ACK message
+   if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
+    // Send ACK message
+    if( send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0) == -1){
+     // Error sending, enqueue in pending list
+     enqueue(user->pending_messages, (void *)nextMsg);
      return;
     }
 
+   // Null character
+   char *empty = "\0";
+   // Send null character instead of user name
+   if( send(sd, empty, 1, 0) == -1){
+    // Error sending, enqueue in pending list
+    enqueue(user->pending_messages, (void *)nextMsg);
+    return;
+   }
 
-    while( !queue_empty(user->pending_messages) ){
+   // send message id
+   unsigned int msg_id = nextMsg->message_id;
+   // Obtain the length of the id in characters
+   double x = (double)(msg_id);
+   int n = log10(x) + 1;
+   char response[n];
+   // Store unsigned integer as string
+   sprintf(response, "%u", msg_id);
+   if( send(sd, &response, n+1, 0 ) == -1 ){
+    // Error sending, enqueue in pending list
+    enqueue(user->pending_messages, (void *)nextMsg);
+    return;
+   }
 
-     struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
-     printf("SENDING AN ACK&&&&\n");
-     if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
-      printf("SENDING AN ACK\n");
+   // Send null character instead of message
+   if( send(sd, empty, 1, 0) == -1){
+    // Error sending, enqueue in pending list
+    enqueue(user->pending_messages, (void *)nextMsg);
+    return;
+   }
 
-      if( send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0) == -1){
-       printf("ERROR SENDING AN ACK\n");
-       // Error sending, enqueue in pending list
-       enqueue(user->pending_messages, (void *)nextMsg);
-       return;
-      }
-
-      char *empty = "\0";
-      if( send(sd, empty, 1, 0) == -1){
-       printf("ERROR SENDING EMPTY\n");
-       // Error sending, enqueue in pending list
-       enqueue(user->pending_messages, (void *)nextMsg);
-       return;
-      }
-
-      // send message id
-      unsigned int msg_id = nextMsg->message_id;
-      double x = (double)(msg_id);
-      int n = log10(x) + 1;
-      char response[n];
-      sprintf(response, "%u\0", msg_id);
-      if( send(sd, &response, n+1, 0 ) == -1 ){
-       // Error sending, enqueue in pending list
-       enqueue(user->pending_messages, (void *)nextMsg);
-       return;
-      }
-
-
-      if( send(sd, empty, 1, 0) == -1){
-       printf("ERROR SENDING EMPTY MSG\n");
-       // Error sending, enqueue in pending list
-       enqueue(user->pending_messages, (void *)nextMsg);
-       return;
-      }
-
-      continue;
-     }
-
-     if( send(sd, command, strlen(command)+1, 0) == -1){
-      // Error sending, enqueue in pending list
-      enqueue(user->pending_messages, (void *)nextMsg);
-      return;
-     }
-
-     if( send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0) == -1 ){
-      // Error sending, enqueue in pending list
-      enqueue(user->pending_messages, (void *)nextMsg);
-      return;
-     }
-
-     // send message id
-     unsigned int msg_id = nextMsg->message_id;
-     double x = (double)(msg_id);
-     int n = log10(x) + 1;
-     char response[n];
-     sprintf(response, "%u\0", msg_id);
-     printf("Response ID: %s\n", response);
-     if( send(sd, &response, n+1, 0 ) == -1 ){
-      // Error sending, enqueue in pending list
-      enqueue(user->pending_messages, (void *)nextMsg);
-      return;
-     }
-
-     //send(sd, (char *)&nextMsg->message_id, sizeof(unsigned int)+1, 0);
-
-     char msgg[256];
-     sprintf(msgg, "%s\0", nextMsg->message);
-     if( send(sd, msgg, strlen(msgg)+1, 0) == -1 ){
-      // Error sending, enqueue in pending list
-      enqueue(user->pending_messages, (void *)nextMsg);
-      return;
-     }
+   // Restart the while loop
+   continue;
+  }
 
 
-     printf("s> SEND MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+ // Send a regular message
 
-     // Ack
-     struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
-     if( usr != NULL){
-      printf("PREPARING ACK\n");
-       struct messages* ackMsg = (struct messages *) malloc(sizeof(struct messages));
-       bzero(ackMsg, sizeof(struct messages));
-       ackMsg->message_id = nextMsg->message_id;
-       strcpy(ackMsg->message, "SEND_MESS_ACK\0");
-       enqueue(usr->pending_messages, (void *) ackMsg);
-       clientSentMessages(usr);
-     }
+ // Send command SEND_MESSAGE
+ if( send(sd, command, strlen(command)+1, 0) == -1){
+  // Error sending, enqueue in pending list
+  enqueue(user->pending_messages, (void *)nextMsg);
+  return;
+ }
 
-     //printf("CONTENT> %s\n", nextMsg->message );
-     //send(sd, endMsg, strlen(endMsg)+1, 0);
-////////////////////////////////////////////////////////
-     // ACK message to sender
-     // struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
-     // if(usr != NULL){
-     //
-     //   int ss;
-     //   struct sockaddr_in server_addr_sender;
-     //   struct hostent *hp_sender;
-     //   ss = socket(AF_INET, SOCK_STREAM, 0);
-     //   bzero( (char *)&server_addr_sender, sizeof(server_addr_sender) );
-     //
-     //   hp_sender = gethostbyname( inet_ntoa( usr->user_addr) );
-     //
-     //   memcpy( &(server_addr_sender.sin_addr), hp_sender->h_addr, hp_sender->h_length);
-     //   server_addr_sender.sin_family = AF_INET;
-     //   server_addr_sender.sin_port = htons(usr->user_port);
-     //   printf("ACK TEST\n" );
-     //  if( connect(ss, (struct sockaddr *) &server_addr_sender, sizeof(server_addr_sender)) == -1){
-     //   perror("RECEIVER not reachable: ");
-     //   usr->status = OFF;
-     //   close(ss);
-     //  }else{
-     //   char *ack_msg = "SEND_MESS_ACK\0";
-     //   send(ss, ack_msg, strlen(ack_msg)+1, 0);
-     //   close(ss);
-     //  }
-     // }
-//////////////////////////////////////////
+  // Send user name of sender
+  if( send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0) == -1 ){
+   // Error sending, enqueue in pending list
+   enqueue(user->pending_messages, (void *)nextMsg);
+   return;
+  }
 
-    }
+  // send message id
+  unsigned int msg_id = nextMsg->message_id;
+  // Obtain the length of the id in characters
+  double x = (double)(msg_id);
+  int n = log10(x) + 1;
+  char response[n];
+  sprintf(response, "%u", msg_id);
+  if( send(sd, &response, n+1, 0 ) == -1 ){
+   // Error sending, enqueue in pending list
+   enqueue(user->pending_messages, (void *)nextMsg);
+   return;
+  }
 
-    //send(sd, (char *)&num, sizeof(int), 0);
-    //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
-    //sendto(sd, (char *)&response, sizeof(int), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, command, strlen(command)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, usr, strlen(usr)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, id, strlen(id)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, msg, strlen(msg)+1, 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
+   // Send message
+   char msgg[256];
+   // Include null character
+   sprintf(msgg, "%s", nextMsg->message);
+   if( send(sd, msgg, strlen(msgg)+1, 0) == -1 ){
+    // Error sending, enqueue in pending list
+    enqueue(user->pending_messages, (void *)nextMsg);
+    return;
+   }
 
-    //sendto(sd, command, strlen(command), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, usr, strlen(usr), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, id, strlen(id), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
-    //sendto(sd, msg, strlen(msg), 0, (struct sockaddr *) &user->user_addr,sizeof(user->user_addr) );
 
-    // send(sd, command, strlen(command)+1, 0);
-    // send(sd, usr, strlen(usr)+1, 0);
-    // send(sd, id, strlen(id)+1, 0);
-    // send(sd, msg, strlen(msg)+1, 0);
-    //
-    // send(sd, command, strlen(command)+1, 0);
-    // send(sd, usr, strlen(usr)+1, 0);
-    // send(sd, id, strlen(id)+1, 0);
-    // send(sd, msg, strlen(msg)+1, 0);
-    // sleep(2);
-    // send(sd, command, strlen(command)+1, 0);
-    // send(sd, usr, strlen(usr)+1, 0);
-    // send(sd, id, strlen(id)+1, 0);
-    // send(sd, msg, strlen(msg)+1, 0);
+   // Console output
+   printf("s> SEND MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
 
-    close(sd);
+   // Create ACK message
+   // Get target user
+   struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
+   if( usr != NULL){
+     struct messages* ackMsg = (struct messages *) malloc(sizeof(struct messages));
+     bzero(ackMsg, sizeof(struct messages));
+     ackMsg->message_id = nextMsg->message_id;
+     strcpy(ackMsg->message, "SEND_MESS_ACK\0");
+     // Insert in the pending_messages queue
+     enqueue(usr->pending_messages, (void *) ackMsg);
+     // Call this function with the sender user to send the ACK
+     clientSentMessages(usr);
+   }
+
+  }
+  // Close socket
+  close(sd);
 }
 
-
+/* Register new user */
 void registerUser(struct argumentWrapper *args){
  // start critical section
  pthread_mutex_lock(&mutex_msg);
+  // Copy arguments
   char username[sizeof(args->username)];
   int sc;
   struct sockaddr_in clientAddr;
-
-
 
   strcpy(username,args->username);
   sc = args->clientFD;
@@ -267,9 +224,9 @@ void registerUser(struct argumentWrapper *args){
 
   free(args->username);
 
-  printf("___username send to find: %s \n", username);
+  // Check if user is already register
   struct userInformation *usr = queue_find(queueUsers, username);
-    //if( queue_find(queueUsers, username) == NULL){
+    // Not registered
     if( usr == NULL){
 
     struct userInformation *user = (struct userInformation*)malloc(sizeof(struct userInformation));
@@ -281,22 +238,22 @@ void registerUser(struct argumentWrapper *args){
     user->pending_messages = queue_new();
     user->last_message_id = 0;
 
+    // Store new user in the queue
     enqueue(queueUsers, (void *) user);
 
     clientResponse(0, clientAddr, sc); // success
     printf("s> REGISTER %s OK\n", username );
   }else{
-   printf("___username given: %s \n", username);
-   printf("USER already registered %s //  status:%c\n", usr->username, usr->status);
-   clientResponse(1, clientAddr, sc); // user exist
+   // User already registered
+   clientResponse(1, clientAddr, sc);
    printf("s> REGISTER %s FAIL\n", username );
   }
+  // Close socket
   close(sc);
-
 }
 
 
-
+/* Unregister user */
 void unregisterUser(struct argumentWrapper *args){
 
   char username[sizeof(args->username)];
@@ -305,7 +262,7 @@ void unregisterUser(struct argumentWrapper *args){
 
   // start critical section
   pthread_mutex_lock(&mutex_msg);
-
+  // Make local copies of arguments
   strcpy(username,args->username);
   sc = args->clientFD;
   clientAddr = args->clientAddr;
@@ -317,6 +274,7 @@ void unregisterUser(struct argumentWrapper *args){
 
   free(args->username);
 
+  // Remove user from the queue
   if(queue_remove(queueUsers, username)){
     clientResponse(0, clientAddr, sc); // success
     printf("s> UNREGISTER %s OK\n", username );
@@ -324,9 +282,11 @@ void unregisterUser(struct argumentWrapper *args){
    clientResponse(1, clientAddr, sc); // user does not exist
    printf("s> UNREGISTER %s FAIL\n", username );
   }
+  // Close socket
   close(sc);
 }
 
+/* User connection */
 void  connectUser(struct argumentWrapper *args){
   char username[sizeof(args->username)];
   int sc;
@@ -347,35 +307,38 @@ void  connectUser(struct argumentWrapper *args){
   pthread_mutex_unlock(&mutex_msg);
 
   free(args->username);
+
+  // Check user is registered
   if((user = queue_find(queueUsers, username)) != NULL){
-      if(user->status == CONNECTED){
-       clientResponse(2, clientAddr, sc); // user is already connected
-       printf("s> CONNECT %s FAIL\n", username );
-      }else{
-        user->user_addr = clientAddr.sin_addr;
-        user->user_port = port;
-        user->status = CONNECTED;
-        clientResponse(0, clientAddr, sc); // success
-        printf("s> CONNECT %s OK\n", username );
 
+   if(user->status == CONNECTED){
+    clientResponse(2, clientAddr, sc); // user is already connected
+    printf("s> CONNECT %s FAIL\n", username );
+   }else{
+    // User registered and not connected
+    // Fill ip address, port and set status to connected
+     user->user_addr = clientAddr.sin_addr;
+     user->user_port = port;
+     user->status = CONNECTED;
+     clientResponse(0, clientAddr, sc); // success
+     printf("s> CONNECT %s OK\n", username );
 
-       if( !queue_empty(user->pending_messages)){
-         //clientSentMessages(user,clientAddr, port);
-         clientSentMessages(user);
-       }
-
-      }
+    // Send pending messages
+    if( !queue_empty(user->pending_messages)){
+      clientSentMessages(user);
+    }
+   }
   }else{
     clientResponse(1, clientAddr, sc); // user does not exist
     printf("s> CONNECT %s FAIL\n", username );
    }
-
+  // Close socket
   close(sc);
 }
 
-
+/* User disconnect */
 void disconnectUser(struct argumentWrapper *args){
- printf("in disconnectUser\n");
+
  char username[sizeof(args->username)];
  int sc;
  struct sockaddr_in clientAddr;
@@ -395,7 +358,7 @@ void disconnectUser(struct argumentWrapper *args){
  free(args->username);
 
  struct userInformation *user = queue_find(queueUsers, username);
-
+ // Check if user is registered
  if( user != NULL){
   if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
    // registered ip and connection ip don't match
@@ -415,10 +378,16 @@ void disconnectUser(struct argumentWrapper *args){
   clientResponse(1, clientAddr, sc); // user does not exist
   printf("s> DISCONNECT %s FAIL\n", username );
  }
+ // Close socket
  close(sc);
 }
 
-
+/* Send message handler */
+/*
+ * This function receives the messages sent between users and
+ * store them in the correspondign pending message queue
+ * The logic of the message send is made in clientSentMessages function
+ */
 void sendMsg(struct argumentWrapper *args){
  int sc;
  struct sockaddr_in clientAddr;
@@ -442,9 +411,6 @@ void sendMsg(struct argumentWrapper *args){
  pthread_cond_signal(&cond_msg);
  pthread_mutex_unlock(&mutex_msg);
 
-
- printf("source: %s, destination: %s, message: %s\n",usernameS, usernameD, msg );
-
 // Check sender exists
 if( queue_find(queueUsers, usernameS) == NULL ){
   printf("Error: sender doesn't exist\n");
@@ -452,6 +418,7 @@ if( queue_find(queueUsers, usernameS) == NULL ){
   close(sc);
   return;
 }else if(strlen(msg)>255){
+  // Check message length
   printf("Error: message too long\n");
   clientResponse(1, clientAddr, sc);
   close(sc);
@@ -460,62 +427,38 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
  struct userInformation *user = ((struct userInformation *)queue_find(queueUsers, usernameD));
 
- // Check destination exists
+ // Check user receiver exists
  if( user != NULL ){
-    // message container
-    struct messages* message = (struct messages *) malloc(sizeof(struct messages));
-    bzero(message, sizeof(struct messages));
+   // message container
+   struct messages* message = (struct messages *) malloc(sizeof(struct messages));
+   bzero(message, sizeof(struct messages));
 
-    // fill fields and update message id
-    strcpy(message->message, msg);
-    strcpy(message->sender, usernameS);
-    strcpy(message->receiver, usernameD);
-    // message->sender = usernameS;
-    // message->receiver = usernameD;
-    message->message_id = user->last_message_id + 1;
-    user->last_message_id++;
-
-
-    // enqueue in pending list
-    enqueue(user->pending_messages, (void *)message);
-
-    clientResponse(0, clientAddr, sc);
-
-    // send message id
-    unsigned int msg_id = message->message_id;
-    printf("Message id: %u\n", msg_id);
-    double x = (double)(msg_id);
-    int n = log10(x) + 1;
-    char response[n];
-    sprintf(response, "%u\0", msg_id);
-    printf("Response ID: %s\n", response);
-    sendto(sc, &response, n, 0, (struct sockaddr *) &clientAddr,sizeof(clientAddr) );
-
-  if(user->status == CONNECTED){//Send message straight away FIXME must also dequeue
-    printf("User %s connected\n", user->username);
-    // int clientSocket;
-    // struct sockaddr_in client_addr;
-    // struct hostent *clientHP;
-    //
-    // clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    // bzero((char*)&client_addr, sizeof(client_addr));
-    //
-    // memcpy(&(client_addr.sin_addr), &(user->user_addr), sizeof(user->user_addr));
-    // client_addr.sin_family = AF_INET;
-    // client_addr.sin_port = htons(user->user_port);
-    // printf("Client RECEIVE IS AT: %s:%d\n", inet_ntoa(client_addr.sin_addr), user->user_port);
-    // connect(clientSocket, (struct sockaddr *)&client_addr, sizeof(client_addr));
-    //
-    // struct messages* message= dequeue(user->pending_messages);
-    // char * idString = (char*)malloc(32*sizeof(char));
-    // sprintf(idString, "%d\0", message->message_id);
-    // printf("Sending %s(%s) to %s\n", message->message, idString, message->sender);
-    // send(clientSocket, "SEND_MESSAGE\0", 16, 0);
-    // send(clientSocket, message->sender, 256, 0);
-    // send(clientSocket, idString, 32, 0);
-    // send(clientSocket, message->message, 256, 0);
+   // fill fields and update message id
+   strcpy(message->message, msg);
+   strcpy(message->sender, usernameS);
+   strcpy(message->receiver, usernameD);
+   // Increment message id
+   message->message_id = user->last_message_id + 1;
+   // Update user last message id
+   user->last_message_id++;
 
 
+   // enqueue in pending list
+   enqueue(user->pending_messages, (void *)message);
+
+   clientResponse(0, clientAddr, sc);
+
+   // send message id
+   unsigned int msg_id = message->message_id;
+   double x = (double)(msg_id);
+   int n = log10(x) + 1;
+   char response[n];
+   sprintf(response, "%u", msg_id);
+   send(sc, &response, n, 0);
+
+   // Check if receiver user is connected
+   if(user->status == CONNECTED){
+    // Send messages
     clientSentMessages(user);
   }else{
    printf("s> MESSAGE: %u FROM %s TO %s STORED\n", msg_id, message->sender, message->receiver );
@@ -523,13 +466,13 @@ if( queue_find(queueUsers, usernameS) == NULL ){
  }else{
   clientResponse(1, clientAddr, sc);
  }
-
+ // Close socket
  close(sc);
 }
 
 
 int main(int argc, char**argv){
-
+  // Initialize user queue
   queueUsers = queue_new();
 
   // Initialize synchronization elements
@@ -559,7 +502,6 @@ int main(int argc, char**argv){
     return 1;
   }
 
-
   // client file descriptor
   int sc;
   // sockets addresses
@@ -570,52 +512,63 @@ int main(int argc, char**argv){
   // Allocate memory for buffer
   buffer = (char *) calloc(BUFFER_SIZE,sizeof(char));
 
-
+  // Create socket
   sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
   val = 1;
+  // Set socket options
   setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&val, sizeof(int));
 
   bzero( (char *)&serverAddr, sizeof(serverAddr) );
 
+  // Fill internet address structure
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = INADDR_ANY;
   serverAddr.sin_port = htons(port);
 
+  // Bind address to socket
   if( bind(sd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1){
    perror("Bind error: ");
   }
 
+  // Listen for connections on socket
   listen(sd, 5);
   size = sizeof(clientAddr);
 
   // catch CTRL + C signal and execute handler
   signal(SIGINT, signal_handler);
 
-//NINJA
-  //char ipAddress[INET_ADDRSTRLEN];
-  //inet_ntop(AF_INET, (void *)&(serverAddr.sin_addr), ipAddress, INET_ADDRSTRLEN);
+
+  // Get IPv4 IP address from interface eth0
+  struct ifreq ifr;
+  ifr.ifr_addr.sa_family = AF_INET;
+  strncpy(ifr.ifr_name, "eth0", IFNAMSIZ-1);
+  ioctl(sd, SIOCGIFADDR, &ifr);
+
+
   // Console output
-  printf("s> init server %s:%d\n", inet_ntoa( ((struct sockaddr_in *)&serverAddr)->sin_addr  ), port );
-
+  printf("s> init server %s:%d\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr), port );
+  printf("s> \n");
   while(1){
-    printf("Waiting for connection \n");
 
+    // Accept connection from socket
     sc = accept( sd, (struct sockaddr *) &clientAddr, &size);
 
+    // Get command
     int count = readLine(sc, buffer,256);
     if(count == -1){
       perror("Error reading command: ");
+      continue;
     }else if(count == 0){
       printf("Error: command empty\n");
+      continue;
     }
-    printf("Command: %s\n", buffer);
 
-
+    // REGISTER command
     if(!strcmp(buffer, "REGISTER")){
       char *username;
       username = (char *) calloc(256,sizeof(char));
-
+      // Read username
       count = readLine(sc, username, 256);
 
       if(count == -1){
@@ -630,8 +583,7 @@ int main(int argc, char**argv){
         continue;
       }
 
-     // free(username);
-
+      // Arguments to thread
       struct argumentWrapper args;
       args.username = username;
       args.clientFD = sc;
@@ -655,9 +607,11 @@ int main(int argc, char**argv){
       msg_not_copied = TRUE;
       pthread_mutex_unlock(&mutex_msg);
 
+      // UNREGISTER command
     }else if(!strcmp(buffer, "UNREGISTER")){
       char *username;
       username = (char *) calloc(256,sizeof(char));
+      // Read user name
       count = readLine(sc, username, 256);
 
       if(count == -1){
@@ -672,9 +626,7 @@ int main(int argc, char**argv){
         continue;
       }
 
-      printf("count: %d, username: %s\n", count,username);
-     // free(username);
-
+      // Arguments to thread
       struct argumentWrapper args;
       args.username = username;
       args.clientFD = sc;
@@ -687,12 +639,14 @@ int main(int argc, char**argv){
         close(sc);
         continue;
     }
+    // CONNECT command
   }else if(!strcmp(buffer, "CONNECT")){
       char *username;
       char *portString;
       int port;
       username = (char *) calloc(256,sizeof(char));
       portString = (char *) calloc(8,sizeof(char));
+      // Read username
       count = readLine(sc, username, 256);
 
       if(count == -1){
@@ -706,13 +660,12 @@ int main(int argc, char**argv){
         close(sc);
         continue;
       }
+      // Read port
       readLine(sc, portString, 8);
       port = atoi(portString);
 
-      printf("count: %d, username: %s, port: %d\n", count, username, port);
-     // free(username);
-     free(portString);
-
+      free(portString);
+      // Arguments to thread
       struct argumentWrapper args;
       args.username = username;
       args.clientFD = sc;
@@ -732,14 +685,15 @@ int main(int argc, char**argv){
     while(msg_not_copied){
       pthread_cond_wait(&cond_msg, &mutex_msg);
     }
-
     // end critical section
     msg_not_copied = TRUE;
     pthread_mutex_unlock(&mutex_msg);
 
+    // DISCONNECT command
   }else if(!strcmp(buffer, "DISCONNECT")){
      char *username;
      username = (char *) calloc(256,sizeof(char));
+     // Read user name
      count = readLine(sc, username, 256);
 
      if(count == -1){
@@ -754,6 +708,7 @@ int main(int argc, char**argv){
        continue;
      }
 
+     // Arguments to thread
      struct argumentWrapper args;
      args.username = username;
      args.clientFD = sc;
@@ -775,8 +730,9 @@ int main(int argc, char**argv){
      msg_not_copied = TRUE;
      pthread_mutex_unlock(&mutex_msg);
 
+     // SEND command
     }else if(!strcmp(buffer, "SEND")){
-     // get sender user name
+     // Read sender user name
      char *usernameS;
      usernameS = (char *) calloc(256,sizeof(char));
      count = readLine(sc, usernameS, 256);
@@ -793,7 +749,7 @@ int main(int argc, char**argv){
      }
 
 
-     // get destination user name
+     // Read destination user name
      char *usernameD;
      usernameD = (char *) calloc(256,sizeof(char));
      count = readLine(sc, usernameD, 256);
@@ -809,6 +765,7 @@ int main(int argc, char**argv){
        continue;
      }
 
+     // Read message
      char *msg;
      msg = (char *) calloc(256,sizeof(char));
      count = readLine(sc, msg, 256);
@@ -853,7 +810,7 @@ int main(int argc, char**argv){
 
   }// while
 
-  // free(buffer);
+   // Close Socket
    close(sd);
 
   // Destroy synchronization elements

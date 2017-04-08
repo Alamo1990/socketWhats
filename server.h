@@ -13,12 +13,17 @@
 #include <signal.h>
 #include <math.h>
 #include <arpa/inet.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+
 
 #include "read_line.c"
 
 #define BUFFER_SIZE 256
 #define CONNECTED 1
 #define OFF 0
+#define TRUE 1
+#define FALSE 0
 
 struct argumentWrapper {
         char *username;
@@ -44,13 +49,6 @@ struct userInformation{
   struct queue *pending_messages;
   unsigned int last_message_id;
 };
-
-
-void initializeSync(void);
-void destroySync(void);
-void registerUser(struct argumentWrapper *args);
-void connectUser(struct argumentWrapper *args);
-
 
 
 
