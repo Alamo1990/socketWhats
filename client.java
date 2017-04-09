@@ -200,7 +200,7 @@ static RC connect(String user){
  */
 static RC disconnect(String user){
 								int res = -1;
-			
+
 								try{
 
 																Socket sc = new Socket(_server, _port);

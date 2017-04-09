@@ -2,6 +2,7 @@
 #include  <stdlib.h>
 #include  <string.h>
 
+
 #include "queue.h"
 
 struct queue* enqueue(struct queue* s, void * i)
@@ -72,7 +73,7 @@ void* dequeue( struct queue* s )
         free(h);
         s->head = p;
         if( NULL == s->head ) s->tail = s->head;  /* The element tail was pointing to is free(), so we need an update */
-      
+
         return ret;
 }
 

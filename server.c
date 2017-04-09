@@ -6,6 +6,7 @@
 pthread_mutex_t mutex_msg;
 int msg_not_copied = TRUE;
 pthread_cond_t cond_msg;
+pthread_mutex_t mutex_queue;
 
 // users queue
 struct queue *queueUsers;
@@ -26,6 +27,11 @@ void initializeSync(){
    perror("Not possible to initialize condition variable");
    exit(0);
   }
+  if( pthread_mutex_init(&mutex_queue, NULL) != 0) {
+   perror("Not possible to initialize queue mutex");
+   exit(0);
+  };
+
 }
 
 // destroy synchronization elements
@@ -39,6 +45,11 @@ void destroySync(){
    perror("Not possible to destroy condition variable");
    exit(0);
   }
+
+  if( pthread_mutex_destroy(&mutex_queue) != 0) {
+   perror("Not possible to destroy queue mutex");
+   exit(0);
+  };
 }
 
 // retrieve CTRL+C signal
@@ -96,7 +107,9 @@ void clientSentMessages(struct userInformation* user){
    }
 
    // Get the first message from pending queue
+   pthread_mutex_lock(&mutex_queue);
    struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
+   pthread_mutex_unlock(&mutex_queue);
 
    // Check if it is an ACK message
    //if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
@@ -104,7 +117,9 @@ void clientSentMessages(struct userInformation* user){
     // Send ACK message
     if( send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0) == -1){
      // Error sending, enqueue in pending list
+     pthread_mutex_lock(&mutex_queue);
      enqueue(user->pending_messages, (void *)nextMsg);
+     pthread_mutex_unlock(&mutex_queue);
      return;
     }
 
@@ -113,7 +128,9 @@ void clientSentMessages(struct userInformation* user){
    // Send null character instead of user name
    if( send(sd, empty, 1, 0) == -1){
     // Error sending, enqueue in pending list
+    pthread_mutex_lock(&mutex_queue);
     enqueue(user->pending_messages, (void *)nextMsg);
+    pthread_mutex_unlock(&mutex_queue);
     return;
    }
 
@@ -127,14 +144,18 @@ void clientSentMessages(struct userInformation* user){
    sprintf(response, "%u", msg_id);
    if( send(sd, &response, n+1, 0 ) == -1 ){
     // Error sending, enqueue in pending list
+    pthread_mutex_lock(&mutex_queue);
     enqueue(user->pending_messages, (void *)nextMsg);
+    pthread_mutex_unlock(&mutex_queue);
     return;
    }
 
    // Send null character instead of message
    if( send(sd, empty, 1, 0) == -1){
     // Error sending, enqueue in pending list
+    pthread_mutex_lock(&mutex_queue);
     enqueue(user->pending_messages, (void *)nextMsg);
+    pthread_mutex_unlock(&mutex_queue);
     return;
    }
 
@@ -148,14 +169,18 @@ void clientSentMessages(struct userInformation* user){
  // Send command SEND_MESSAGE
  if( send(sd, command, strlen(command)+1, 0) == -1){
   // Error sending, enqueue in pending list
+  pthread_mutex_lock(&mutex_queue);
   enqueue(user->pending_messages, (void *)nextMsg);
+  pthread_mutex_unlock(&mutex_queue);
   return;
  }
 
   // Send user name of sender
   if( send(sd, nextMsg->sender, strlen(nextMsg->sender)+1, 0) == -1 ){
    // Error sending, enqueue in pending list
+   pthread_mutex_lock(&mutex_queue);
    enqueue(user->pending_messages, (void *)nextMsg);
+   pthread_mutex_unlock(&mutex_queue);
    return;
   }
 
@@ -168,7 +193,9 @@ void clientSentMessages(struct userInformation* user){
   sprintf(response, "%u", msg_id);
   if( send(sd, &response, n+1, 0 ) == -1 ){
    // Error sending, enqueue in pending list
+   pthread_mutex_lock(&mutex_queue);
    enqueue(user->pending_messages, (void *)nextMsg);
+   pthread_mutex_unlock(&mutex_queue);
    return;
   }
 
@@ -178,7 +205,9 @@ void clientSentMessages(struct userInformation* user){
    sprintf(msgg, "%s", nextMsg->message);
    if( send(sd, msgg, strlen(msgg)+1, 0) == -1 ){
     // Error sending, enqueue in pending list
+    pthread_mutex_lock(&mutex_queue);
     enqueue(user->pending_messages, (void *)nextMsg);
+    pthread_mutex_unlock(&mutex_queue);
     return;
    }
 
@@ -188,7 +217,10 @@ void clientSentMessages(struct userInformation* user){
 
    // Create ACK message
    // Get target user
+   pthread_mutex_lock(&mutex_queue);
    struct userInformation *usr = queue_find(queueUsers, nextMsg->sender);
+   pthread_mutex_unlock(&mutex_queue);
+
    if( usr != NULL){
      struct messages* ackMsg = (struct messages *) malloc(sizeof(struct messages));
      bzero(ackMsg, sizeof(struct messages));
@@ -196,7 +228,9 @@ void clientSentMessages(struct userInformation* user){
      ackMsg->message_id = nextMsg->message_id;
      strcpy(ackMsg->message, "SEND_MESS_ACK\0");
      // Insert in the pending_messages queue
+     pthread_mutex_lock(&mutex_queue);
      enqueue(usr->pending_messages, (void *) ackMsg);
+     pthread_mutex_unlock(&mutex_queue);
      // Call this function with the sender user to send the ACK
      clientSentMessages(usr);
    }
@@ -227,7 +261,9 @@ void registerUser(struct argumentWrapper *args){
   free(args->username);
 
   // Check if user is already register
+  pthread_mutex_lock(&mutex_queue);
   struct userInformation *usr = queue_find(queueUsers, username);
+  pthread_mutex_unlock(&mutex_queue);
     // Not registered
     if( usr == NULL){
 
@@ -241,7 +277,9 @@ void registerUser(struct argumentWrapper *args){
     user->last_message_id = 0;
 
     // Store new user in the queue
+    pthread_mutex_lock(&mutex_queue);
     enqueue(queueUsers, (void *) user);
+    pthread_mutex_unlock(&mutex_queue);
 
     clientResponse(0, clientAddr, sc); // success
     printf(" REGISTER %s OK\ns>", username );
@@ -277,7 +315,10 @@ void unregisterUser(struct argumentWrapper *args){
   free(args->username);
 
   // Remove user from the queue
-  if(queue_remove(queueUsers, username)){
+  pthread_mutex_lock(&mutex_queue);
+  int removed = queue_remove(queueUsers, username);
+  pthread_mutex_unlock(&mutex_queue);
+  if( removed ){
     clientResponse(0, clientAddr, sc); // success
     printf(" UNREGISTER %s OK\ns>", username );
   }else{
@@ -310,8 +351,12 @@ void  connectUser(struct argumentWrapper *args){
 
   free(args->username);
 
+  pthread_mutex_lock(&mutex_queue);
+  user = queue_find(queueUsers, username);
+  pthread_mutex_unlock(&mutex_queue);
+
   // Check user is registered
-  if((user = queue_find(queueUsers, username)) != NULL){
+  if( user != NULL){
 
    if(user->status == CONNECTED){
     clientResponse(2, clientAddr, sc); // user is already connected
@@ -359,7 +404,9 @@ void disconnectUser(struct argumentWrapper *args){
 
  free(args->username);
 
+ pthread_mutex_lock(&mutex_queue);
  struct userInformation *user = queue_find(queueUsers, username);
+  pthread_mutex_unlock(&mutex_queue);
  // Check if user is registered
  if( user != NULL){
 
@@ -415,8 +462,12 @@ void sendMsg(struct argumentWrapper *args){
  pthread_cond_signal(&cond_msg);
  pthread_mutex_unlock(&mutex_msg);
 
+ pthread_mutex_lock(&mutex_queue);
+ struct userInformation *find = queue_find(queueUsers, usernameS);
+ pthread_mutex_unlock(&mutex_queue);
+
 // Check sender exists
-if( queue_find(queueUsers, usernameS) == NULL ){
+if( find == NULL ){
   printf(" SEND FAIL\ns>");
   clientResponse(1, clientAddr, sc);
   close(sc);
@@ -429,7 +480,9 @@ if( queue_find(queueUsers, usernameS) == NULL ){
   return;
 }
 
+ pthread_mutex_lock(&mutex_queue);
  struct userInformation *user = ((struct userInformation *)queue_find(queueUsers, usernameD));
+ pthread_mutex_unlock(&mutex_queue);
 
  // Check user receiver exists
  if( user != NULL ){
@@ -448,7 +501,9 @@ if( queue_find(queueUsers, usernameS) == NULL ){
 
 
    // enqueue in pending list
+   pthread_mutex_lock(&mutex_queue);
    enqueue(user->pending_messages, (void *)message);
+   pthread_mutex_unlock(&mutex_queue);
 
    clientResponse(0, clientAddr, sc);
 
