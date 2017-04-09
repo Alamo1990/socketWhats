@@ -22,7 +22,7 @@ private static enum RC {
 
 private static String _server   = null;
 private static int _port = -1;
-private static String currUser = null;
+private static String currUser = "";
 private static receiveThread listener;
 private static Socket receiveSc; //ASK
 
@@ -137,6 +137,12 @@ static RC unregister(String user){
 static RC connect(String user){
 
 	int res = -1;
+
+if( !"".equals(currUser) ){
+	System.out.println("c> USER ALREADY CONNECTED");
+	return RC.ERROR;
+}
+
 	ServerSocket serverSc;
 	int port;
 	try{
@@ -203,13 +209,10 @@ static RC disconnect(String user){
 								int res = -1;
 								try{
 
-							//listener.stop(); //REVIEW
-
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
 
-																currUser = null;
 																// Send command to server
 																s.writeBytes("DISCONNECT\0");
 																s.writeBytes(user);
@@ -229,7 +232,8 @@ static RC disconnect(String user){
 								switch (res) {
 								case 0:
 																System.out.println("c> DISCONNECT OK");
-																listener.stop();
+																//listener.stop();
+																currUser = "";
 																return RC.OK;
 								case 1:
 																System.out.println("c> DISCONNECT FAIL / USER DOES NOT EXIST");
@@ -253,11 +257,17 @@ static RC disconnect(String user){
  */
 static RC send(String user, String message){
  							int res = -1;
+
+								if( "".equals(currUser) ){
+									System.out.println("c> SEND FAIL");
+									return RC.ERROR;
+								}
+
 								if(message.length() > 255) {
-																System.out.println("SEND FAIL"); //ASK
+																System.out.println("c> SEND FAIL"); //ASK
 																return RC.USER_ERROR;
 								}else if(currUser == null) {
-																System.out.println("SEND FAIL"); //ASK
+																System.out.println("c> SEND FAIL"); //ASK
 																return RC.USER_ERROR;
 								}
 
@@ -287,13 +297,13 @@ static RC send(String user, String message){
 
 																switch(res) {
 																case 0:
-																								System.out.println("SEND OK - MESSAGE "+ new String(msg_id));
+																								System.out.println("c> SEND OK - MESSAGE "+ new String(msg_id));
 																								return RC.OK;
 																case 1:
-																								System.out.println("SEND FAIL / USER DOES NOT EXIST");
+																								System.out.println("c> SEND FAIL / USER DOES NOT EXIST");
 																								return RC.USER_ERROR;
 																case 2:
-																								System.out.println("SEND FAIL");
+																								System.out.println("c> SEND FAIL");
 																								return RC.ERROR;
 																default: return RC.ERROR;
 																}
@@ -473,7 +483,6 @@ class receiveThread extends Thread{
 				while(true){
 
 				Socket clientSocket = this.serverSc.accept();
-				System.out.println("Connection received from " + clientSocket.getInetAddress().getHostName());
 
 				DataOutputStream s = new DataOutputStream(clientSocket.getOutputStream());
 				InputStream istream = clientSocket.getInputStream();
@@ -526,16 +535,17 @@ class receiveThread extends Thread{
 
 					// Check if message received is a normal message
 					if(command.equals("SEND_MESSAGE")){
-						System.out.println("c> MESSAGE " + id + " FROM " + usr +
+						System.out.println(" MESSAGE " + id + " FROM " + usr +
 					 																			":\n" + msg + "\nEND\n");
 					}else{
 						// An ACK message is received
-						System.out.println("c> SEND MESSAGE " + id + " OK\n");
+						System.out.println(" SEND MESSAGE " + id + " OK\n");
 					}
 
 			 }// if ready
 					// Close client socket
 					clientSocket.close();
+					System.out.print("c> ");
 				}// while(true)
 			}catch( Exception e) {
 				e.printStackTrace();
