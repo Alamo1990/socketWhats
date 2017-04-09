@@ -23,7 +23,7 @@ private static enum RC {
 private static String _server   = null;
 private static int _port = -1;
 private static String currUser = null;
-private static receiveThread listener;
+private static receiveThread listener = null;
 private static Socket receiveSc; //ASK
 
 /********************* METHODS ********************/
@@ -150,9 +150,6 @@ static RC connect(String user){
 		 serverSc = new ServerSocket(0);
 		 port = serverSc.getLocalPort();
 
-		// Update user of the client
-		currUser = user;
-
 		// Send command to server
 		s.writeBytes("CONNECT\0");
 		s.writeBytes(user);
@@ -174,6 +171,9 @@ static RC connect(String user){
 	switch (res) {
 	case 0:
 									System.out.println("c> CONNECT OK");
+									// Update user of the client
+									currUser = user;
+									// Start listening thread
 									listener = new receiveThread(port,serverSc);
 									listener.start();
 									return RC.OK;
@@ -200,6 +200,10 @@ static RC connect(String user){
  */
 static RC disconnect(String user){
 								int res = -1;
+								if(!user.equals(currUser)){
+									System.out.println("c> DISCONNECT FAIL");
+								 return RC.ERROR;
+								}
 								try{
 
 																Socket sc = new Socket(_server, _port);
@@ -226,8 +230,11 @@ static RC disconnect(String user){
 								switch (res) {
 								case 0:
 																System.out.println("c> DISCONNECT OK");
-																listener.endThread();
+																if(listener != null){
+																	listener.endThread();
+																}
 																currUser = null;
+																listener = null;
 																return RC.OK;
 								case 1:
 																System.out.println("c> DISCONNECT FAIL / USER DOES NOT EXIST");
@@ -481,7 +488,6 @@ class receiveThread extends Thread{
 				while(true){
 
 				Socket clientSocket = this.serverSc.accept();
-				System.out.println("Connection received from " + clientSocket.getInetAddress().getHostName());
 
 				DataOutputStream s = new DataOutputStream(clientSocket.getOutputStream());
 				InputStream istream = clientSocket.getInputStream();
@@ -534,11 +540,11 @@ class receiveThread extends Thread{
 
 					// Check if message received is a normal message
 					if(command.equals("SEND_MESSAGE")){
-						System.out.println("c> MESSAGE " + id + " FROM " + usr +
+						System.out.println("MESSAGE " + id + " FROM " + usr +
 					 																			":\n\t" + msg + "\n   END");
 					}else{
 						// An ACK message is received
-						System.out.println("c> SEND MESSAGE " + id + " OK");
+						System.out.println("SEND MESSAGE " + id + " OK");
 					}
 
 			 }// if ready

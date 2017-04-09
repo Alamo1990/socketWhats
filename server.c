@@ -99,7 +99,8 @@ void clientSentMessages(struct userInformation* user){
    struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
 
    // Check if it is an ACK message
-   if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
+   //if( strcmp(nextMsg->message, "SEND_MESS_ACK\0") == 0 ){
+   if( nextMsg->type == 1 ){
     // Send ACK message
     if( send(sd, nextMsg->message, strlen(nextMsg->message)+1, 0) == -1){
      // Error sending, enqueue in pending list
@@ -191,6 +192,7 @@ void clientSentMessages(struct userInformation* user){
    if( usr != NULL){
      struct messages* ackMsg = (struct messages *) malloc(sizeof(struct messages));
      bzero(ackMsg, sizeof(struct messages));
+     ackMsg->type = 1;
      ackMsg->message_id = nextMsg->message_id;
      strcpy(ackMsg->message, "SEND_MESS_ACK\0");
      // Insert in the pending_messages queue
@@ -198,10 +200,10 @@ void clientSentMessages(struct userInformation* user){
      // Call this function with the sender user to send the ACK
      clientSentMessages(usr);
    }
-
+   // Close socket
+   close(sd);
   }
-  // Close socket
-  close(sd);
+
 }
 
 /* Register new user */
@@ -553,6 +555,7 @@ int main(int argc, char**argv){
 
     // Accept connection from socket
     sc = accept( sd, (struct sockaddr *) &clientAddr, &size);
+
 
     // Get command
     int count = readLine(sc, buffer,256);
