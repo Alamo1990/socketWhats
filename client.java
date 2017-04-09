@@ -233,6 +233,7 @@ static RC disconnect(String user){
 								case 0:
 																System.out.println("c> DISCONNECT OK");
 																//listener.stop();
+																listener.endThread();
 																currUser = "";
 																return RC.OK;
 								case 1:
@@ -383,6 +384,8 @@ static void shell()
 																																/************** QUIT **************/
 																																else if (line[0].equals("QUIT")) {
 																																								if (line.length == 1) {
+																																															 // End thread before exit
+																																																listener.endThread();
 																																																exit = true;
 																																								} else {
 																																																System.out.println("Syntax error. Use: QUIT");
@@ -399,7 +402,7 @@ static void shell()
 																								e.printStackTrace();
 																}
 								}
-								System.exit(0);
+
 }
 
 /**
@@ -477,6 +480,15 @@ class receiveThread extends Thread{
 		 this.serverSc = serverSc;
 	 }
 
+		// Stop thread, block in accept
+		public void endThread(){
+			try{
+				this.serverSc.close();
+			}catch( Exception e) {
+	   e.printStackTrace();
+	  }
+		}
+
 
 		public void run(){
 			try{
@@ -542,12 +554,15 @@ class receiveThread extends Thread{
 						System.out.println(" SEND MESSAGE " + id + " OK\n");
 					}
 
-			 }// if ready
+			 }
 					// Close client socket
 					clientSocket.close();
 					System.out.print("c> ");
-				}// while(true)
-			}catch( Exception e) {
+				}
+			}catch( java.net.SocketException ex){
+				// Catch exception when server socket is closed
+			}
+			catch( Exception e) {
 				e.printStackTrace();
 			}
 		}
