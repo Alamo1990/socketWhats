@@ -362,11 +362,13 @@ void disconnectUser(struct argumentWrapper *args){
  struct userInformation *user = queue_find(queueUsers, username);
  // Check if user is registered
  if( user != NULL){
-  if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
-   // registered ip and connection ip don't match
-   clientResponse(3, clientAddr, sc);
-   printf(" DISCONNECT %s FAIL\ns>", username );
-  }else if(user->status == CONNECTED){
+
+  if(user->status == CONNECTED){ // user connected
+   if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
+    // registered ip and connection ip don't match
+    clientResponse(3, clientAddr, sc);
+    printf(" DISCONNECT %s FAIL\ns>", username );
+   }
    user->status = OFF; // disconnect status
    user->user_port = 0; // remove port
    user->user_addr.s_addr = 0; // remove ip

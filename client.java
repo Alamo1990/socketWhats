@@ -200,16 +200,12 @@ static RC connect(String user){
  */
 static RC disconnect(String user){
 								int res = -1;
-								if(!user.equals(currUser)){
-									System.out.println("c> DISCONNECT FAIL");
-								 return RC.ERROR;
-								}
+			
 								try{
 
 																Socket sc = new Socket(_server, _port);
 																DataOutputStream s = new DataOutputStream(sc.getOutputStream());
 																DataInputStream istream = new DataInputStream(sc.getInputStream());
-
 
 																// Send command to server
 																s.writeBytes("DISCONNECT\0");
