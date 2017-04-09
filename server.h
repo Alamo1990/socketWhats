@@ -35,6 +35,7 @@ struct argumentWrapper {
 };
 
 struct messages {
+        //char type;
         unsigned int message_id;
         char message[256];
         char sender[256];

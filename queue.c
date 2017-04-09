@@ -72,7 +72,7 @@ void* dequeue( struct queue* s )
         free(h);
         s->head = p;
         if( NULL == s->head ) s->tail = s->head;  /* The element tail was pointing to is free(), so we need an update */
-        //printf("IM the QUEUE, Mensaje name:%s \n", ((struct messages *)(ret))->sender );
+      
         return ret;
 }
 

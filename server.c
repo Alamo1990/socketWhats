@@ -70,30 +70,30 @@ void clientResponse(char response, struct sockaddr_in clientAddr, int sc ){
 */
 void clientSentMessages(struct userInformation* user){
 
-  // Prepare connection elements
-  int sd;
-  struct sockaddr_in server_addr;
-  struct hostent *hp;
-  sd = socket(AF_INET, SOCK_STREAM, 0);
-  bzero( (char *)&server_addr, sizeof(server_addr) );
-  hp = gethostbyname( inet_ntoa( user->user_addr) );
-  memcpy( &(server_addr.sin_addr), hp->h_addr, hp->h_length);
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(user->user_port);
-
-  // Default command to send message
-  char *command = "SEND_MESSAGE\0";
-
-  // Stablish connection
-  if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
-   // Error making connection, set user as disconnected
-   user->status = OFF;
-   close(sd);
-   return;
-  }
-
   // Pending messages in the queue
   while( !queue_empty(user->pending_messages) ){
+
+   // Prepare connection elements
+   int sd;
+   struct sockaddr_in server_addr;
+   struct hostent *hp;
+   sd = socket(AF_INET, SOCK_STREAM, 0);
+   bzero( (char *)&server_addr, sizeof(server_addr) );
+   hp = gethostbyname( inet_ntoa( user->user_addr) );
+   memcpy( &(server_addr.sin_addr), hp->h_addr, hp->h_length);
+   server_addr.sin_family = AF_INET;
+   server_addr.sin_port = htons(user->user_port);
+
+   // Default command to send message
+   char *command = "SEND_MESSAGE\0";
+
+   // Stablish connection
+   if( connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) == -1){
+    // Error making connection, set user as disconnected
+    user->status = OFF;
+    close(sd);
+    return;
+   }
 
    // Get the first message from pending queue
    struct messages *nextMsg = (struct messages *) dequeue(user->pending_messages);
@@ -183,7 +183,7 @@ void clientSentMessages(struct userInformation* user){
 
 
    // Console output
-   printf("s> SEND MESSAGE %u FROM %s TO %s\n",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
+   printf(" SEND MESSAGE %u FROM %s TO %s\ns> ",nextMsg->message_id, nextMsg->sender, nextMsg->receiver );
 
    // Create ACK message
    // Get target user
@@ -242,11 +242,11 @@ void registerUser(struct argumentWrapper *args){
     enqueue(queueUsers, (void *) user);
 
     clientResponse(0, clientAddr, sc); // success
-    printf("s> REGISTER %s OK\n", username );
+    printf(" REGISTER %s OK\ns>", username );
   }else{
    // User already registered
    clientResponse(1, clientAddr, sc);
-   printf("s> REGISTER %s FAIL\n", username );
+   printf(" REGISTER %s FAIL\ns>", username );
   }
   // Close socket
   close(sc);
@@ -277,10 +277,10 @@ void unregisterUser(struct argumentWrapper *args){
   // Remove user from the queue
   if(queue_remove(queueUsers, username)){
     clientResponse(0, clientAddr, sc); // success
-    printf("s> UNREGISTER %s OK\n", username );
+    printf(" UNREGISTER %s OK\ns>", username );
   }else{
    clientResponse(1, clientAddr, sc); // user does not exist
-   printf("s> UNREGISTER %s FAIL\n", username );
+   printf(" UNREGISTER %s FAIL\ns>", username );
   }
   // Close socket
   close(sc);
@@ -313,7 +313,7 @@ void  connectUser(struct argumentWrapper *args){
 
    if(user->status == CONNECTED){
     clientResponse(2, clientAddr, sc); // user is already connected
-    printf("s> CONNECT %s FAIL\n", username );
+    printf(" CONNECT %s FAIL\ns>", username );
    }else{
     // User registered and not connected
     // Fill ip address, port and set status to connected
@@ -321,7 +321,7 @@ void  connectUser(struct argumentWrapper *args){
      user->user_port = port;
      user->status = CONNECTED;
      clientResponse(0, clientAddr, sc); // success
-     printf("s> CONNECT %s OK\n", username );
+     printf(" CONNECT %s OK\ns>", username );
 
     // Send pending messages
     if( !queue_empty(user->pending_messages)){
@@ -330,7 +330,7 @@ void  connectUser(struct argumentWrapper *args){
    }
   }else{
     clientResponse(1, clientAddr, sc); // user does not exist
-    printf("s> CONNECT %s FAIL\n", username );
+    printf(" CONNECT %s FAIL\ns>", username );
    }
   // Close socket
   close(sc);
@@ -363,20 +363,20 @@ void disconnectUser(struct argumentWrapper *args){
   if(user->user_addr.s_addr != clientAddr.sin_addr.s_addr){
    // registered ip and connection ip don't match
    clientResponse(3, clientAddr, sc);
-   printf("s> DISCONNECT %s FAIL\n", username );
+   printf(" DISCONNECT %s FAIL\ns>", username );
   }else if(user->status == CONNECTED){
    user->status = OFF; // disconnect status
    user->user_port = 0; // remove port
    user->user_addr.s_addr = 0; // remove ip
    clientResponse(0, clientAddr, sc); // success
-   printf("s> DISCONNECT %s OK\n", username );
+   printf(" DISCONNECT %s OK\ns>", username );
   }else{
    clientResponse(2, clientAddr, sc); // user not connected
-   printf("s> DISCONNECT %s FAIL\n", username );
+   printf(" DISCONNECT %s FAIL\ns>", username );
   }
  }else{
   clientResponse(1, clientAddr, sc); // user does not exist
-  printf("s> DISCONNECT %s FAIL\n", username );
+  printf(" DISCONNECT %s FAIL\ns>", username );
  }
  // Close socket
  close(sc);
@@ -413,13 +413,13 @@ void sendMsg(struct argumentWrapper *args){
 
 // Check sender exists
 if( queue_find(queueUsers, usernameS) == NULL ){
-  printf("Error: sender doesn't exist\n");
+  printf(" SEND FAIL\ns>");
   clientResponse(1, clientAddr, sc);
   close(sc);
   return;
 }else if(strlen(msg)>255){
   // Check message length
-  printf("Error: message too long\n");
+  printf(" SEND FAIL\ns>");
   clientResponse(1, clientAddr, sc);
   close(sc);
   return;
@@ -461,7 +461,7 @@ if( queue_find(queueUsers, usernameS) == NULL ){
     // Send messages
     clientSentMessages(user);
   }else{
-   printf("s> MESSAGE: %u FROM %s TO %s STORED\n", msg_id, message->sender, message->receiver );
+   printf(" MESSAGE: %u FROM %s TO %s STORED\ns>", msg_id, message->sender, message->receiver );
   }
  }else{
   clientResponse(1, clientAddr, sc);
@@ -548,7 +548,7 @@ int main(int argc, char**argv){
 
   // Console output
   printf("s> init server %s:%d\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr), port );
-  printf("s> \n");
+  printf("s>");
   while(1){
 
     // Accept connection from socket
