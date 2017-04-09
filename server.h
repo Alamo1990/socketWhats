@@ -26,27 +26,26 @@
 #define FALSE 0
 
 struct argumentWrapper {
-        char *username;
-        char *usernameD;
-        char *msg;
-        int clientFD;
-        struct sockaddr_in clientAddr;
-        int clientPort;
+  char *username;
+  char *usernameD;
+  char *msg;
+  int clientFD;
+  struct sockaddr_in clientAddr;
+  int clientPort;
 };
 
 struct messages {
-        char type;
-        unsigned int message_id;
-        char message[256];
-        char sender[256];
-        char receiver[256];
+  char type;
+  unsigned int message_id;
+  char message[256];
+  char sender[256];
+  char receiver[256];
 };
 struct userInformation{
   char username[256];
   char status;
   struct in_addr user_addr;
   unsigned short user_port;
-  //struct messages *pending_messages;
   struct queue *pending_messages;
   unsigned int last_message_id;
 };
